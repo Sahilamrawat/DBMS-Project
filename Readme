@@ -1,0 +1,3 @@
+### commands to run
+## 1-> #Cd frontend (if not inside the frontend directory)
+## 2-> #npm run dev (to start the localhost server) 
