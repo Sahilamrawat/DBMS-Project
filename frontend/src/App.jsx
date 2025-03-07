@@ -36,7 +36,7 @@ function Home() {
 
 export function Hero() {
   return (
-    <section className="relative h-screen flex items-center justify-center text-center px-6">
+    <section className="relative h-[80%] flex items-center justify-center text-center px-6">
       <motion.img 
         className='w-[850px] h-[800px]'
         src={HeroImg} 
