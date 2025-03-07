@@ -1,32 +1,125 @@
-import React from 'react'
-import '../index.css'
-function Navheader() {
-  return (
-    <div className='Nav-Container bg-white min-h-[7%] flex items-center m-auto pt-3 pb-2'>
-        <nav className='flex justify-between items-center w-[100%] '>
-          <div className='flex items-center ml-10'>
-            <a href='/' className='text-[35px] font-bold'>Logo</a>         
-          </div>
-          <div className=''>
-            <ul className='flex items-center  justify-between space-x-10 text-[20px] ml-20'>
-                <li className='li-items hover:text-[#77B254] cursor-pointer hover:scale-110 duration-150'>Home</li>
-                <li className='li-items hover:text-[#77B254] cursor-pointer hover:scale-110 duration-150'>Book</li>
-                <li className='li-items hover:text-[#77B254] cursor-pointer hover:scale-110 duration-150'>About Us</li>
-            </ul>
-          </div>
-          <div className='flex items-center text-[17px] space-x-1 mr-10'>
-            <div className=''>
-              <button className='SignUp rounded-full px-3 py-1  cursor-pointer hover:scale-110 duration-150'>Sign-Up</button>
-            </div>
-            <div className=''>
-              <button className='Login bg-[#77B254] rounded-full px-3 py-1 cursor-pointer text-white hover:scale-110 duration-150'>Login</button>
-            </div>
-            
-          </div>
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import '../index.css';
 
-        </nav>
-    </div>
-  )
+function Navheader() {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 20) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      className={`fixed w-full z-50 transition-all duration-300 ${
+        isScrolled 
+          ? 'bg-white shadow-lg py-2' 
+          : 'bg-white/0 py-4'
+      }`}
+    >
+      <div className={`absolute inset-0 transition-all duration-300 ${
+        isScrolled ? 'bg-white shadow-sm' : ''
+      }`} />
+
+      <nav className='max-w-7xl mx-auto flex items-center justify-between px-6 relative z-10'>
+        {/* Logo */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className='flex items-center'
+        >
+          <a href='/' className='flex items-center space-x-2'>
+            <span className={`text-3xl font-bold transition-all duration-300 ${
+              isScrolled 
+                ? 'bg-gradient-to-r from-[#77B254] to-[#69a048] bg-clip-text text-transparent'
+                : 'text-gray-800'
+            }`}>
+              HealthCare
+            </span>
+          </a>         
+        </motion.div>
+
+        {/* Navigation Links */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="hidden md:block"
+        >
+          <ul className='flex items-center space-x-8'>
+            {['Home', 'Services', 'About Us', 'Contact'].map((item, index) => (
+              <motion.li 
+                key={item}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * index }}
+                className='relative group'
+              >
+                <a 
+                  href={`#${item.toLowerCase().replace(' ', '-')}`}
+                  className={`font-medium transition-all duration-300 py-2 px-3 rounded-lg
+                    ${isScrolled 
+                      ? 'text-gray-700 hover:text-[#77B254] hover:bg-gray-50' 
+                      : 'text-gray-800 hover:text-[#77B254] hover:bg-white/10'
+                    }`}
+                >
+                  {item}
+                </a>
+                <span className={`absolute bottom-0 left-0 w-full h-0.5 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300
+                  ${isScrolled ? 'bg-[#77B254]' : 'bg-white'}`} />
+              </motion.li>
+            ))}
+          </ul>
+        </motion.div>
+
+        {/* Auth Buttons */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className='flex items-center space-x-4'
+        >
+          <button className={`px-6 py-2 font-medium transition-all duration-300 rounded-lg
+            ${isScrolled 
+              ? 'text-gray-700 hover:text-[#77B254] hover:bg-gray-50' 
+              : 'text-gray-800 hover:text-[#77B254] hover:bg-white/10'
+            }`}>
+            Sign In
+          </button>
+          <button className={`px-6 py-2 font-medium transition-all duration-300 rounded-lg
+            ${isScrolled 
+              ? 'bg-gradient-to-r from-[#77B254] to-[#69a048] text-white hover:from-[#69a048] hover:to-[#77B254]' 
+              : 'bg-white text-gray-800 hover:bg-gray-100'
+            } transform hover:scale-105 shadow-md hover:shadow-lg active:scale-95`}>
+            Sign Up
+          </button>
+        </motion.div>
+
+        {/* Mobile Menu Button */}
+        <div className="md:hidden">
+          <button className={`p-2 rounded-lg transition-colors duration-300 ${
+            isScrolled ? 'hover:bg-gray-50' : 'hover:bg-white/10'
+          }`}>
+            <svg className={`w-6 h-6 ${isScrolled ? 'text-gray-700' : 'text-gray-800'}`} 
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+      </nav>
+    </motion.div>
+  );
 }
 
-export default Navheader
+export default Navheader;

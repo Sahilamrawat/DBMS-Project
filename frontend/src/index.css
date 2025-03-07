@@ -6,7 +6,9 @@ body{
 .Nav-Container{
     /* box-shadow: 0 1px 60px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) */
     object-fit: contain;
-    
+    position: fixed;
+    width: 100%;
+    z-index: 100;
 }
 .SignUp:hover{
     color: #77B254;
