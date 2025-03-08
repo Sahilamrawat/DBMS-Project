@@ -109,7 +109,7 @@ const FeaturesSection = () => {
                          transform hover:-translate-y-1 transition-all duration-300
                          cursor-pointer relative overflow-hidden group`}
             >
-              <div className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors duration-300"></div>
+              <div className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors duration-300" ></div>
               <div className="relative z-10">
                 <div className="text-4xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
                   {feature.icon}

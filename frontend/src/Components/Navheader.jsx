@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import '../index.css';
+import { useNavigate } from 'react-router-dom';
 
 function Navheader() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,6 +19,17 @@ function Navheader() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const navItems = [
+    { name: 'Home', path: '/' },
+    { name: 'Services', path: '/services' },
+    { name: 'About Us', path: '/about' },
+    { name: 'Contact', path: '/contact' }
+  ];
+
+  const handleNavigation = (path) => {
+    navigate(path);
+  };
 
   return (
     <motion.div
@@ -58,24 +71,24 @@ function Navheader() {
           className="hidden md:block"
         >
           <ul className='flex items-center space-x-8'>
-            {['Home', 'Services', 'About Us', 'Contact'].map((item, index) => (
+            {navItems.map((item, index) => (
               <motion.li 
-                key={item}
+                key={item.name}
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 * index }}
                 className='relative group'
               >
-                <a 
-                  href={`#${item.toLowerCase().replace(' ', '-')}`}
+                <button 
+                  onClick={() => handleNavigation(item.path)}
                   className={`font-medium transition-all duration-300 py-2 px-3 rounded-lg
                     ${isScrolled 
                       ? 'text-gray-700 hover:text-[#77B254] hover:bg-gray-50' 
                       : 'text-gray-800 hover:text-[#77B254] hover:bg-white/10'
                     }`}
                 >
-                  {item}
-                </a>
+                  {item.name}
+                </button>
                 <span className={`absolute bottom-0 left-0 w-full h-0.5 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300
                   ${isScrolled ? 'bg-[#77B254]' : 'bg-white'}`} />
               </motion.li>

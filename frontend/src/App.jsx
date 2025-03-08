@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import {Route, Routes, BrowserRouter} from 'react-router-dom'
+import {Route, Routes, BrowserRouter, useNavigate} from 'react-router-dom'
 import Navheader from './Components/Navheader'
 import HeroImg from './assets/Hero.svg'
 import FeaturesSection from './Components/FeaturesSection'
 import Footer from './Components/Footer'
+import FeaturesPage from './Components/FeaturesPage'
+import { Link } from 'react-router-dom'
 
 import { motion } from "framer-motion";
 import { FaHeartbeat } from "react-icons/fa";
@@ -13,6 +15,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/services" element={<FeaturesPage />} />
+        
       </Routes>
     </BrowserRouter>
   )
@@ -36,15 +40,10 @@ function Home() {
 
 export function Hero() {
   const [showSearch, setShowSearch] = useState(false);
+  const navigate = useNavigate();
 
-  const scrollToFeatures = () => {
-    const featuresElement = document.getElementById('features');
-    if (featuresElement) {
-      featuresElement.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }
+  const navigateToServices = () => {
+    navigate('/services');
   };
 
   return (
@@ -145,7 +144,7 @@ export function Hero() {
                   Search Services
                 </button>
                 <button 
-                  onClick={scrollToFeatures}
+                  onClick={navigateToServices}
                   className='border-2 border-[#77B254] rounded-xl px-6 py-4 cursor-pointer text-xl text-[#77B254] hover:bg-[#77B254] hover:text-white duration-150 flex items-center gap-2'
                 >
                   Get Started
@@ -209,3 +208,4 @@ const styles = `
   animation-delay: 4s;
 }
 `;
+ 
