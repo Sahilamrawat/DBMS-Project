@@ -1,20 +1,40 @@
 import { useState } from 'react'
-import {Route, Routes, BrowserRouter, useNavigate} from 'react-router-dom'
+import {Route, Routes, BrowserRouter, useNavigate, Navigate} from 'react-router-dom'
 import Navheader from './Components/Navheader'
 import HeroImg from './assets/Hero.svg'
 import FeaturesSection from './Components/FeaturesSection'
 import Footer from './Components/Footer'
-import FeaturesPage from './Components/FeaturesPage'
+import FeaturesPage from './pages/FeaturesPage'
 import { Link } from 'react-router-dom'
-
+import Register from './pages/Register'
 import { motion } from "framer-motion";
 import { FaHeartbeat } from "react-icons/fa";
+import ProtectedRoute from './Components/ProtectedRoute'
+import Login from './pages/Login'
+
+
+function Logout(){
+  localStorage.clear();
+  return <Navigate to="/login" /> 
+}
+
+function RegisterAndLogout(){
+  localStorage.clear();
+  return <Register/>
+}
  
-function App() {
+function App() {  
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Home />
+          </ProtectedRoute>
+        } />
+        <Route path="/login" element={<Login />} />
+        <Route path="/logout" element={<Logout />} />
+        <Route path="/register" element={<RegisterAndLogout />} />
         <Route path="/services" element={<FeaturesPage />} />
         
       </Routes>

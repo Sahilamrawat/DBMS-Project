@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import '../index.css';
 import { useNavigate } from 'react-router-dom';
+import { ACCESS_TOKEN } from '../constants';
+import { FaUserCircle } from 'react-icons/fa';
 
 function Navheader() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,9 +20,19 @@ function Navheader() {
       }
     };
 
+    // Check if user is logged in
+    const token = localStorage.getItem(ACCESS_TOKEN);
+    setIsLoggedIn(!!token);
+
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem(ACCESS_TOKEN);
+    setIsLoggedIn(false);
+    navigate('/login');
+  };
 
   const navItems = [
     { name: 'Home', path: '/' },
@@ -96,27 +110,82 @@ function Navheader() {
           </ul>
         </motion.div>
 
-        {/* Auth Buttons */}
+        {/* Auth Buttons or Profile */}
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
           className='flex items-center space-x-4'
         >
-          <button className={`px-6 py-2 font-medium transition-all duration-300 rounded-lg
-            ${isScrolled 
-              ? 'text-gray-700 hover:text-[#77B254] hover:bg-gray-50' 
-              : 'text-gray-800 hover:text-[#77B254] hover:bg-white/10'
-            }`}>
-            Sign In
-          </button>
-          <button className={`px-6 py-2 font-medium transition-all duration-300 rounded-lg
-            ${isScrolled 
-              ? 'bg-gradient-to-r from-[#77B254] to-[#69a048] text-white hover:from-[#69a048] hover:to-[#77B254]' 
-              : 'bg-white text-gray-800 hover:bg-gray-100'
-            } transform hover:scale-105 shadow-md hover:shadow-lg active:scale-95`}>
-            Sign Up
-          </button>
+          {isLoggedIn ? (
+            <div className="relative">
+              <button 
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className={`p-2 rounded-full transition-all duration-300 ${
+                  isScrolled 
+                    ? 'hover:bg-gray-50' 
+                    : 'hover:bg-white/10'
+                }`}
+              >
+                <FaUserCircle className={`w-8 h-8 ${
+                  isScrolled ? 'text-gray-700' : 'text-gray-800'
+                }`} />
+              </button>
+              
+              {/* Profile Dropdown Menu */}
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                  <button
+                    onClick={() => {
+                      navigate('/profile');
+                      setShowProfileMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50"
+                  >
+                    Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate('/settings');
+                      setShowProfileMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50"
+                  >
+                    Settings
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-50"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <button 
+                onClick={() => navigate('/login')}
+                className={`px-6 py-2 font-medium transition-all duration-300 rounded-lg
+                  ${isScrolled 
+                    ? 'text-gray-700 hover:text-[#77B254] hover:bg-gray-50' 
+                    : 'text-gray-800 hover:text-[#77B254] hover:bg-white/10'
+                  }`}
+              >
+                Sign In
+              </button>
+              <button 
+                onClick={() => navigate('/register')}
+                className={`px-6 py-2 font-medium transition-all duration-300 rounded-lg
+                  ${isScrolled 
+                    ? 'bg-gradient-to-r from-[#77B254] to-[#69a048] text-white hover:from-[#69a048] hover:to-[#77B254]' 
+                    : 'bg-white text-gray-800 hover:bg-gray-100'
+                  } transform hover:scale-105 shadow-md hover:shadow-lg active:scale-95`}
+              >
+                Sign Up
+              </button>
+            </>
+          )}
         </motion.div>
 
         {/* Mobile Menu Button */}

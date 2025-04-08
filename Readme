@@ -1,3 +1,9 @@
 ### commands to run
 ## 1-> #Cd frontend (if not inside the frontend directory)
 ## 2-> #npm run dev (to start the localhost server) 
+
+
+
+# backend running commands(these commands are for mac please search corresponding commands according to your shell)
+python3 -m venv env
+source env/bin/activate 
