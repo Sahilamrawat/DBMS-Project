@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { FaHeartbeat } from "react-icons/fa";
 import ProtectedRoute from './Components/ProtectedRoute'
 import Login from './pages/Login'
+import Profile from './pages/Profile'
 
 
 function Logout(){
@@ -36,6 +37,7 @@ function App() {
         <Route path="/logout" element={<Logout />} />
         <Route path="/register" element={<RegisterAndLogout />} />
         <Route path="/services" element={<FeaturesPage />} />
+        <Route path='profile' element={<Profile/>}/>
         
       </Routes>
     </BrowserRouter>
