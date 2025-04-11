@@ -47,7 +47,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         ]
     def create(self, validated_data):
         profile_data = {
-            'username': validated_data.pop('username'),
             'first_name': validated_data.pop('first_name'),
             'last_name': validated_data.pop('last_name'),
             'email': validated_data.pop('email'),
@@ -58,6 +57,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             'phone': validated_data.pop('phone'),
             'address': validated_data.pop('address'),
         }
+        
         password = validated_data.pop('password')
         print("Creating user with data:", validated_data)
 

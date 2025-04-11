@@ -13,7 +13,7 @@ class Profile(models.Model):
     gender = models.CharField(max_length=10, null=True)
     address = models.TextField()
     phone = models.CharField(max_length=15)
-
+    
     class Meta:
         db_table = 'Patient'  # 🧠 Custom table name here
 
