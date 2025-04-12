@@ -44,6 +44,7 @@ const FeaturesPage = () => {
       title: "Find a Doctor",
       description: "Search and connect with specialized healthcare professionals.",
       action: "Search Doctors",
+      onClick:()=>navigate('/doctors')
     },
     {
       id: 'consultations',

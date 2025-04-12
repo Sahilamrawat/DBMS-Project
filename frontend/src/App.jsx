@@ -13,6 +13,7 @@ import ProtectedRoute from './Components/ProtectedRoute'
 import Login from './pages/Login'
 import Profile from './pages/Profile'
 import Appointment from './pages/Appointment'
+import Doctor from './pages/Doctor'
 
 
 function Logout(){
@@ -40,6 +41,7 @@ function App() {
         <Route path="/services" element={<FeaturesPage />} />
         <Route path='profile' element={<Profile/>}/>
         <Route path="/appointments" element={<Appointment />} />
+        <Route path='/doctors' element={<Doctor/>} />
         
       </Routes>
     </BrowserRouter>

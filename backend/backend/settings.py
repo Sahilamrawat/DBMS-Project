@@ -92,22 +92,20 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
+    'default': {    
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'HealthCareSystem',
-        'USER': 'teammate',
-        'PASSWORD': '4*#a9i;@9O3)',
-        'HOST': 'localhost',  # or your MySQL host
+        'USER': 'admin', 
+        'PASSWORD': 'sahil2005',
+        'HOST': 'dbms.cp8u8u4esgnz.eu-north-1.rds.amazonaws.com',  # or your MySQL host
         'PORT': '3306',       # default MySQL port
         
     }
 }
-
 
 
 # Password validation
