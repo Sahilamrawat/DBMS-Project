@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-scroll';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FaCalendarCheck, FaUserMd, FaHospital, FaNotesMedical, 
          FaFileMedical, FaHeartbeat, FaPills, FaAmbulance, FaArrowUp, FaSearch, FaFlask, FaBrain, FaSyringe, FaAppleAlt, FaPrescriptionBottleAlt, FaShieldAlt, FaStar, FaUserCircle } from 'react-icons/fa';
 import { BsArrowRight } from 'react-icons/bs';
@@ -9,6 +9,7 @@ import Navheader from '../Components/Navheader';
 import Footer from '../Components/Footer';
 
 const FeaturesPage = () => {
+  const navigate = useNavigate();
   const location = useLocation();
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,6 +36,7 @@ const FeaturesPage = () => {
       title: "Online Appointment Booking",
       description: "Schedule appointments with your preferred doctors at your convenience.",
       action: "Book Appointment",
+      onClick: () => navigate('/appointment')
     },
     {
       id: 'doctors',

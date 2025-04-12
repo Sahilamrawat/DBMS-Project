@@ -100,8 +100,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'HealthCareSystem',
-        'USER': 'root',
-        'PASSWORD': 'sahil2005',
+        'USER': 'teammate',
+        'PASSWORD': '4*#a9i;@9O3)',
         'HOST': 'localhost',  # or your MySQL host
         'PORT': '3306',       # default MySQL port
         

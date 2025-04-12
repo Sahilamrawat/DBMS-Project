@@ -1,12 +1,12 @@
 from django.shortcuts import render
 from django.contrib.auth.models import User
 from rest_framework import generics
-from .serializers import UserRegistrationSerializer, NoteSerializer
+from .serializers import UserRegistrationSerializer, NoteSerializer, DoctorSerializer, AppointmentSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import EmailTokenObtainPairSerializer
-from .models import Note, Profile
+from .serializers import EmailTokenObtainPairSerializer,ProfileSerializer
+from .models import Note, Profile, Doctor, Appointment
 
 # Create your views here.
 
@@ -46,32 +46,52 @@ class CreateUserView(generics.CreateAPIView):
 
     
 class ProfileDetailView(generics.RetrieveUpdateAPIView):
-  
-    serializer_class = UserRegistrationSerializer
+    serializer_class = ProfileSerializer  # use correct serializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
-    def get_object(self,request):   
-        print("Headers:", request.headers)
+    def get_object(self):
         profile, created = Profile.objects.get_or_create(user=self.request.user)
-        if created:
-            pass 
         return profile
 
     def get_queryset(self):
         return Profile.objects.filter(user=self.request.user)
+    
+class DoctorListView(generics.ListAPIView):
+    queryset = Doctor.objects.all()
+    serializer_class = DoctorSerializer
+    permission_classes = [IsAuthenticated]
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', True)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+    def get_queryset(self):
+        specialization = self.request.query_params.get('specialization', None)
+        if specialization:
+            return Doctor.objects.filter(specialization=specialization)
+        return Doctor.objects.all()
 
-        if getattr(instance, '_prefetched_objects_cache', None):
-            instance._prefetched_objects_cache = {}
+class AppointmentCreateView(generics.CreateAPIView):
+    serializer_class = AppointmentSerializer
+    permission_classes = [IsAuthenticated]
 
-        return Response(serializer.data)
+    def perform_create(self, serializer):
+        # Get the patient profile from the authenticated user
+        patient_profile = self.request.user.profile
+        # Set the appointment fee from the selected doctor
+        doctor = Doctor.objects.get(id=self.request.data['doctor'])
+        serializer.save(
+            patient=patient_profile,
+            appointment_fee=doctor.consultation_fee
+        )
 
-    def perform_update(self, serializer):
-        serializer.save()
+    def create(self, request, *args, **kwargs):
+        try:
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            print("Error creating appointment:", str(e))
+            raise
+
+class AppointmentListView(generics.ListAPIView):
+    serializer_class = AppointmentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Appointment.objects.filter(patient=self.request.user.profile)

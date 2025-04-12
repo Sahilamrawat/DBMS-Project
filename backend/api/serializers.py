@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Note, Profile
+from .models import Note, Profile, Doctor, Appointment
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
 
@@ -70,8 +70,50 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         Profile.objects.create(user=user, **profile_data)
 
         return user
+    
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = [
+            'patient_id', 'first_name', 'last_name', 'email', 'adhaar_number',
+            'patient_type', 'dob', 'gender', 'phone', 'address', 
+            'blood_group', 'height', 'weight', 'emergency_contact',
+            'insurance_status', 'insurance_number', 'allergies',
+            'medical_conditions', 'created_at'
+        ]
+        read_only_fields = ['patient_id']  # Make patient_id read-only
 class NoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Note
         fields = ['id', 'title', 'content', 'created_at', 'updated_at', 'user']
         extra_kwargs = {"user": {"read_only": True}}
+
+class DoctorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Doctor
+        fields = ['id', 'doctor_id', 'first_name', 'last_name', 'qualification', 
+                 'specialization', 'schedule', 'contact_info', 'image', 'bio', 
+                 'experience_years', 'consultation_fee']
+
+class AppointmentSerializer(serializers.ModelSerializer):
+    doctor_name = serializers.SerializerMethodField()
+    patient_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Appointment
+        fields = [
+            'id', 'appointment_id', 
+            'doctor', 'doctor_id_display', 'doctor_name',
+            'patient', 'patient_id_display', 'patient_name',
+            'appointment_date', 'appointment_mode', 
+            'appoint_status', 'appointment_fee',
+            'symptoms', 'notes', 'created_at'
+        ]
+        read_only_fields = ['appointment_id', 'patient', 'appointment_fee', 
+                           'patient_id_display', 'doctor_id_display']
+
+    def get_doctor_name(self, obj):
+        return f"Dr. {obj.doctor.first_name} {obj.doctor.last_name}"
+
+    def get_patient_name(self, obj):
+        return f"{obj.patient.first_name} {obj.patient.last_name}"
