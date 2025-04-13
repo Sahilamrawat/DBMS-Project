@@ -192,7 +192,7 @@ class Emergency(models.Model):
     STATUS_CHOICES = [('Pending', 'Pending'), ('Arrived', 'Arrived'), ('Completed', 'Completed')]
     YES_NO_CHOICES = [('Yes', 'Yes'), ('No', 'No')]
 
-    patient = models.ForeignKey('Patient', on_delete=models.CASCADE)
+    patient = models.ForeignKey('Profile', on_delete=models.CASCADE)
     doctor = models.ForeignKey('Doctor', on_delete=models.SET_NULL, null=True, blank=True)
     request_time = models.DateTimeField(auto_now_add=True)
     ambulance_assign_status = models.CharField(max_length=3, choices=YES_NO_CHOICES)
