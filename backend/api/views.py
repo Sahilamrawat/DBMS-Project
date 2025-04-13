@@ -2,12 +2,12 @@ from django.shortcuts import render
 from django.contrib.auth.models import User
 from rest_framework import generics
 from rest_framework import viewsets
-from .serializers import UserRegistrationSerializer, NoteSerializer, DoctorSerializer, AppointmentSerializer
+from .serializers import UserRegistrationSerializer, NoteSerializer, DoctorSerializer, AppointmentSerializer , EmergencySerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import EmailTokenObtainPairSerializer,ProfileSerializer,ConsultancySerializer
-from .models import Note, Profile, Doctor, Appointment ,Consultancy
+from .models import Note, Profile, Doctor, Appointment ,Consultancy , Emergency
 from rest_framework.response import Response
 
 # Create your views here.
@@ -166,3 +166,9 @@ class ConsultancyViewSet(viewsets.ModelViewSet):
         except Profile.DoesNotExist:
             print(f"No profile found for user: {self.request.user.username}")
             return Consultancy.objects.none()
+        
+
+class EmergencyViewSet(viewsets.ModelViewSet):
+    queryset = Emergency.objects.all().order_by('-request_time')
+    serializer_class = EmergencySerializer
+    permission_classes = [IsAuthenticated]

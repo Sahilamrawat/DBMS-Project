@@ -187,3 +187,22 @@ class Consultancy(models.Model):
         if self.doctor and self.doctor.doctor_id:
             self.doctor_id_display = self.doctor.doctor_id
         super().save(*args, **kwargs)
+
+class Emergency(models.Model):
+    STATUS_CHOICES = [('Pending', 'Pending'), ('Arrived', 'Arrived'), ('Completed', 'Completed')]
+    YES_NO_CHOICES = [('Yes', 'Yes'), ('No', 'No')]
+
+    patient = models.ForeignKey('Patient', on_delete=models.CASCADE)
+    doctor = models.ForeignKey('Doctor', on_delete=models.SET_NULL, null=True, blank=True)
+    request_time = models.DateTimeField(auto_now_add=True)
+    ambulance_assign_status = models.CharField(max_length=3, choices=YES_NO_CHOICES)
+    ambulance_assigned = models.CharField(max_length=20, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    arrival_time_in_hospital = models.DateTimeField(null=True, blank=True)
+    driver_name = models.CharField(max_length=50, null=True, blank=True)
+    driver_contact_num = models.CharField(max_length=15, null=True, blank=True)
+    legal_issues_reported = models.CharField(max_length=3, choices=YES_NO_CHOICES)
+    legal_case_number = models.CharField(max_length=20, null=True, blank=True)
+
+    def __str__(self):
+        return f"Emergency for Patient {self.patient.id} - {self.status}"
