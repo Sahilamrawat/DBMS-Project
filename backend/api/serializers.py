@@ -128,15 +128,43 @@ class ConsultancySerializer(serializers.ModelSerializer):
             'consult_id',
             'patient',
             'doctor',
+            'patient_id_display',
+            'doctor_id_display',
             'patient_name',
             'doctor_name',
             'consultation_type',
+            'diagnosis',
+            'treatment',
+            'allergies',
+            'past_surgeries',
+            'previous_medications',
             'consultation_notes',
             'created_at'
         ]
+        read_only_fields = ['consult_id', 'patient_id_display', 'doctor_id_display', 'created_at']
+
+    def validate(self, data):
+        # Ensure consultation_type is one of the valid choices
+        valid_types = [choice[0] for choice in Consultancy.CONSULTATION_TYPE_CHOICES]
+        if data.get('consultation_type') not in valid_types:
+            raise serializers.ValidationError({
+                'consultation_type': f'Must be one of: {", ".join(valid_types)}'
+            })
+        
+        # Validate patient and doctor exist
+        if not data.get('patient'):
+            raise serializers.ValidationError({'patient': 'Patient is required'})
+        if not data.get('doctor'):
+            raise serializers.ValidationError({'doctor': 'Doctor is required'})
+            
+        return data
 
     def get_patient_name(self, obj):
-        return f"{obj.patient.first_name} {obj.patient.last_name}" if obj.patient else None
+        if not obj.patient:
+            return None
+        return f"{obj.patient.first_name} {obj.patient.last_name}"
 
     def get_doctor_name(self, obj):
-        return f"Dr. {obj.doctor.first_name} {obj.doctor.last_name}" if obj.doctor else None
+        if not obj.doctor:
+            return None
+        return f"Dr. {obj.doctor.first_name} {obj.doctor.last_name}"

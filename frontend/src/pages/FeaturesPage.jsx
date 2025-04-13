@@ -52,6 +52,7 @@ const FeaturesPage = () => {
       title: "Virtual Consultations",
       description: "Connect with doctors remotely through secure video consultations.",
       action: "Start Consultation",
+      onClick:()=>navigate('/consultations')
     },
     {
       id: 'records',

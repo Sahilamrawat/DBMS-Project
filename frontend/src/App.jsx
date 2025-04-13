@@ -14,6 +14,7 @@ import Login from './pages/Login'
 import Profile from './pages/Profile'
 import Appointment from './pages/Appointment'
 import Doctor from './pages/Doctor'
+import Consultancy from './pages/Consultancy'
 
 
 function Logout(){
@@ -42,6 +43,7 @@ function App() {
         <Route path='profile' element={<Profile/>}/>
         <Route path="/appointments" element={<Appointment />} />
         <Route path='/doctors' element={<Doctor/>} />
+        <Route path='/consultations' element={<Consultancy/>} />
         
       </Routes>
     </BrowserRouter>

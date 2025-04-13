@@ -157,14 +157,33 @@ class Consultancy(models.Model):
     ]
 
     consult_id = models.AutoField(primary_key=True)
-    patient = models.ForeignKey(Profile, on_delete=models.CASCADE)  # Refers to Patient model
-    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)    # Refers to Doctor model
+    patient = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)
+    patient_id_display = models.CharField(max_length=15, editable=False, null=True, blank=True)
+    doctor_id_display = models.CharField(max_length=15, editable=False, null=True, blank=True)
     consultation_type = models.CharField(max_length=20, choices=CONSULTATION_TYPE_CHOICES)
+    
+    # Medical History Fields
+    diagnosis = models.TextField(null=True, blank=True)
+    treatment = models.TextField(null=True, blank=True)
+    allergies = models.TextField(null=True, blank=True)
+    past_surgeries = models.TextField(null=True, blank=True)
+    previous_medications = models.TextField(null=True, blank=True)
+    
+    # Consultation Details
     consultation_notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'Consultancy'
+        managed = True  # Explicitly set managed to True
 
     def __str__(self):
         return f"Consultancy {self.consult_id} - {self.patient} with Dr. {self.doctor.last_name}"
+
+    def save(self, *args, **kwargs):
+        if self.patient and self.patient.patient_id:
+            self.patient_id_display = self.patient.patient_id
+        if self.doctor and self.doctor.doctor_id:
+            self.doctor_id_display = self.doctor.doctor_id
+        super().save(*args, **kwargs)
