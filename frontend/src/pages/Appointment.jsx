@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { FaUserMd, FaCalendar, FaClock, FaMoneyBill, FaNotesMedical, FaStethoscope, FaHospital } from 'react-icons/fa';
 import api from '../api';
 import Navheader from '../Components/Navheader';
@@ -16,12 +17,13 @@ const specializations = [
 ];
 
 function Appointment() {
-  const [step, setStep] = useState(1);
+  const location = useLocation();
+  const [step, setStep] = useState(location.state?.selectedDoctor ? 3 : 1);
   const [doctors, setDoctors] = useState([]);
-  const [selectedSpecialization, setSelectedSpecialization] = useState('');
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [selectedSpecialization, setSelectedSpecialization] = useState(location.state?.selectedDoctor?.specialization || '');
+  const [selectedDoctor, setSelectedDoctor] = useState(location.state?.selectedDoctor || null);
   const [appointmentData, setAppointmentData] = useState({
-    doctor: '',
+    doctor: location.state?.selectedDoctor?.id || '',
     appointment_date: '',
     appointment_fee: '',
     appointment_mode: 'IN_PERSON',
@@ -203,17 +205,17 @@ function Appointment() {
             animate={{ opacity: 1 }}
             className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredDoctors.map((doctor) => (
                 <motion.div
-                  key={doctor.doctor_id}
+                  key={doctor.id}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleDoctorSelect(doctor)}
-                  className={`bg-white rounded-lg shadow hover:shadow-md transition-all cursor-pointer
+                  className={`bg-white rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer
                     ${selectedDoctor?.id === doctor.id ? 'ring-2 ring-[#77B254]' : ''}`}
                 >
-                  <div className="p-4">
+                  <div className="p-6">
                     <div className="flex items-center space-x-4">
                       <div className="relative flex-shrink-0">
                         <img
@@ -253,8 +255,9 @@ function Appointment() {
                     </div>
 
                     <button 
-                      className="mt-3 w-full bg-gray-50 text-[#77B254] border border-[#77B254] hover:bg-[#77B254] hover:text-white 
-                        px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center space-x-2"
+                      className="mt-4 w-full bg-[#77B254] text-white hover:bg-green-600 
+                        px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 
+                        flex items-center justify-center space-x-2"
                     >
                       <FaCalendar className="w-4 h-4" />
                       <span>Book Appointment</span>
@@ -309,21 +312,28 @@ function Appointment() {
                     />
                   </div>
 
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Appointment Mode
                     </label>
-                    <select
-                      value={appointmentData.appointment_mode}
-                      onChange={(e) =>
-                        setAppointmentData({ ...appointmentData, appointment_mode: e.target.value })
-                      }
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#77B254] focus:border-transparent transition-all"
-                      required
-                    >
-                      <option value="IN_PERSON">In Person</option>
-                      <option value="ONLINE">Online</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={appointmentData.appointment_mode}
+                        onChange={(e) =>
+                          setAppointmentData({ ...appointmentData, appointment_mode: e.target.value })
+                        }
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#77B254] focus:border-transparent transition-all appearance-none bg-white"
+                        required
+                      >
+                        <option value="IN_PERSON">In Person</option>
+                        <option value="ONLINE">Online</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
