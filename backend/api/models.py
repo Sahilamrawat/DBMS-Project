@@ -147,3 +147,24 @@ class Appointment(models.Model):
         if self.doctor and self.doctor.doctor_id:
             self.doctor_id_display = self.doctor.doctor_id
         super().save(*args, **kwargs)
+
+
+class Consultancy(models.Model):
+    CONSULTATION_TYPE_CHOICES = [
+        ('Chat', 'Chat'),
+        ('Audio call', 'Audio call'),
+        ('Video Call', 'Video Call'),
+    ]
+
+    consult_id = models.AutoField(primary_key=True)
+    patient = models.ForeignKey(Profile, on_delete=models.CASCADE)  # Refers to Patient model
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)    # Refers to Doctor model
+    consultation_type = models.CharField(max_length=20, choices=CONSULTATION_TYPE_CHOICES)
+    consultation_notes = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'Consultancy'
+
+    def __str__(self):
+        return f"Consultancy {self.consult_id} - {self.patient} with Dr. {self.doctor.last_name}"

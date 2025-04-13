@@ -1,12 +1,13 @@
 from django.shortcuts import render
 from django.contrib.auth.models import User
 from rest_framework import generics
+from rest_framework import viewsets
 from .serializers import UserRegistrationSerializer, NoteSerializer, DoctorSerializer, AppointmentSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import EmailTokenObtainPairSerializer,ProfileSerializer
-from .models import Note, Profile, Doctor, Appointment
+from .serializers import EmailTokenObtainPairSerializer,ProfileSerializer,ConsultancySerializer
+from .models import Note, Profile, Doctor, Appointment ,Consultancy
 
 # Create your views here.
 
@@ -95,3 +96,8 @@ class AppointmentListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Appointment.objects.filter(patient=self.request.user.profile)
+    
+class ConsultancyViewSet(viewsets.ModelViewSet):
+    queryset = Consultancy.objects.all().order_by('-created_at')
+    serializer_class = ConsultancySerializer
+    # permission_classes = [IsAuthenticated]

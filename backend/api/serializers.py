@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Note, Profile, Doctor, Appointment
+from .models import Note, Profile, Doctor, Appointment , Consultancy
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
 
@@ -117,3 +117,26 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     def get_patient_name(self, obj):
         return f"{obj.patient.first_name} {obj.patient.last_name}"
+    
+class ConsultancySerializer(serializers.ModelSerializer):
+    patient_name = serializers.SerializerMethodField()
+    doctor_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Consultancy
+        fields = [
+            'consult_id',
+            'patient',
+            'doctor',
+            'patient_name',
+            'doctor_name',
+            'consultation_type',
+            'consultation_notes',
+            'created_at'
+        ]
+
+    def get_patient_name(self, obj):
+        return f"{obj.patient.first_name} {obj.patient.last_name}" if obj.patient else None
+
+    def get_doctor_name(self, obj):
+        return f"Dr. {obj.doctor.first_name} {obj.doctor.last_name}" if obj.doctor else None
