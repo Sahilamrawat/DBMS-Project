@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-scroll';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaCalendarCheck, FaUserMd, FaHospital, FaNotesMedical, 
-         FaFileMedical, FaHeartbeat, FaPills, FaAmbulance, FaArrowUp, FaSearch, FaFlask, FaBrain, FaSyringe, FaAppleAlt, FaPrescriptionBottleAlt, FaShieldAlt, FaStar, FaUserCircle } from 'react-icons/fa';
+         FaFileMedical, FaHeartbeat, FaPills, FaAmbulance, FaArrowUp, FaSearch, FaFlask, FaBrain, FaSyringe, FaAppleAlt, FaPrescriptionBottleAlt, FaShieldAlt, FaStar, FaUserCircle, FaClock, FaChartBar, FaCog } from 'react-icons/fa';
 import { BsArrowRight } from 'react-icons/bs';
 import Navheader from '../Components/Navheader';
 import Footer from '../Components/Footer';
@@ -14,14 +14,33 @@ const FeaturesPage = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllServices, setShowAllServices] = useState(false);
+  const [userType, setUserType] = useState(localStorage.getItem('user_type') || 'PATIENT');
 
   useEffect(() => {
+    // Log the current user type for debugging
+    console.log('Current user type:', userType);
+    console.log('LocalStorage user_type:', localStorage.getItem('user_type'));
+    
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 300);
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, [userType]);
+
+  // Add an effect to update userType when localStorage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const storedUserType = localStorage.getItem('user_type');
+      if (storedUserType) {
+        setUserType(storedUserType);
+        console.log('User type updated:', storedUserType);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const handleSearch = (e) => {
@@ -29,7 +48,8 @@ const FeaturesPage = () => {
     // Implement search functionality here
   };
 
-  const features = [
+  // Patient-specific features
+  const patientFeatures = [
     {
       id: 'appointments',
       icon: <FaCalendarCheck className="text-4xl" />,
@@ -44,7 +64,7 @@ const FeaturesPage = () => {
       title: "Find a Doctor",
       description: "Search and connect with specialized healthcare professionals.",
       action: "Search Doctors",
-      onClick:()=>navigate('/doctors')
+      onClick: () => navigate('/doctors')
     },
     {
       id: 'consultations',
@@ -52,7 +72,7 @@ const FeaturesPage = () => {
       title: "Virtual Consultations",
       description: "Connect with doctors remotely through secure video consultations.",
       action: "Start Consultation",
-      onClick:()=>navigate('/consultations')
+      onClick: () => navigate('/consultations')
     },
     {
       id: 'records',
@@ -91,6 +111,63 @@ const FeaturesPage = () => {
     }
   ];
 
+  // Doctor-specific features
+  const doctorFeatures = [
+    {
+      id: 'manage-appointments',
+      icon: <FaCalendarCheck className="text-4xl" />,
+      title: "Manage Appointments",
+      description: "View and manage your scheduled appointments with patients.",
+      action: "View Schedule",
+      onClick: () => navigate('/doctor/appointments')
+    },
+    {
+      id: 'consultations',
+      icon: <FaHospital className="text-4xl" />,
+      title: "Active Consultations",
+      description: "Manage your ongoing virtual consultations and patient interactions.",
+      action: "View Consultations",
+      onClick: () => navigate('/doctor/consultations')
+    },
+    {
+      id: 'patients',
+      icon: <FaUserMd className="text-4xl" />,
+      title: "Patient Management",
+      description: "Access and manage your patient records and medical histories.",
+      action: "View Patients",
+      onClick: () => navigate('/doctor/patients')
+    },
+  
+    {
+      id: 'prescriptions',
+      icon: <FaPrescriptionBottleAlt className="text-4xl" />,
+      title: "Prescriptions",
+      description: "Write and manage digital prescriptions for your patients.",
+      action: "Write Prescription",
+      onClick: () => navigate('/doctor/prescriptions')
+    },
+    {
+      id: 'reports',
+      icon: <FaChartBar className="text-4xl" />,
+      title: "Analytics & Reports",
+      description: "View insights about your practice and patient statistics.",
+      action: "View Reports",
+      onClick: () => navigate('/doctor/reports')
+    },
+    {
+      id: 'emergency-requests',
+      icon: <FaAmbulance className="text-4xl" />,
+      title: "Emergency Requests",
+      description: "Manage and respond to emergency consultation requests.",
+      action: "View Requests",
+      onClick: () => navigate('/doctor/emergency')
+    },
+    
+  ];
+
+  // Use appropriate features based on user type
+  const features = userType === 'DOCTOR' ? doctorFeatures : patientFeatures;
+
   const additionalServices = [
     {
       id: 'lab-tests',
@@ -99,27 +176,9 @@ const FeaturesPage = () => {
       description: "Comprehensive range of diagnostic tests with quick and accurate results.",
       action: "Book Test"
     },
-    {
-      id: 'mental-health',
-      icon: <FaBrain className="text-4xl" />,
-      title: "Mental Health",
-      description: "Professional mental health services and counseling support.",
-      action: "Consult Now"
-    },
-    {
-      id: 'vaccination',
-      icon: <FaSyringe className="text-4xl" />,
-      title: "Vaccination Services",
-      description: "Stay protected with our complete vaccination programs.",
-      action: "Schedule Vaccine"
-    },
-    {
-      id: 'nutrition',
-      icon: <FaAppleAlt className="text-4xl" />,
-      title: "Nutrition Consulting",
-      description: "Personalized nutrition plans and dietary consultations.",
-      action: "Get Advice"
-    },
+    
+    
+    
     {
       id: 'pharmacy',
       icon: <FaPrescriptionBottleAlt className="text-4xl" />,
@@ -127,13 +186,7 @@ const FeaturesPage = () => {
       description: "Order medications online with doorstep delivery.",
       action: "Order Now"
     },
-    {
-      id: 'insurance',
-      icon: <FaShieldAlt className="text-4xl" />,
-      title: "Health Insurance",
-      description: "Navigate healthcare insurance options with expert guidance.",
-      action: "Learn More"
-    }
+  
   ];
 
   return (
@@ -186,11 +239,17 @@ const FeaturesPage = () => {
               className="text-white mb-12"
             >
               <h1 className="text-5xl text-gray-800 md:text-6xl font-bold mb-6 leading-tight">
-                Find Your Healthcare 
-                <span className="text-[#77B254]"> Services</span>
+                {userType === 'DOCTOR' ? (
+                  <>Manage Your <span className="text-[#77B254]">Medical Practice</span></>
+                ) : (
+                  <>Find Your Healthcare <span className="text-[#77B254]">Services</span></>
+                )}
               </h1>
               <p className="text-xl text-gray-800 mb-12 leading-relaxed max-w-2xl mx-auto">
-                Search through our comprehensive range of healthcare services designed for your well-being
+                {userType === 'DOCTOR' 
+                  ? "Access all the tools you need to manage your practice and provide excellent patient care"
+                  : "Search through our comprehensive range of healthcare services designed for your well-being"
+                }
               </p>
 
               {/* Search Bar */}
@@ -206,7 +265,7 @@ const FeaturesPage = () => {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search for healthcare services..."
+                      placeholder={userType === 'DOCTOR' ? "Search for practice management tools..." : "Search for healthcare services..."}
                       className="w-full px-6 py-4 pr-12 text-gray-700 bg-white/95 
                                backdrop-blur-md rounded-full shadow-xl
                                focus:outline-none 
@@ -223,20 +282,36 @@ const FeaturesPage = () => {
                   
                   {/* Popular Searches */}
                   <div className="mt-4 flex flex-wrap justify-center gap-2 ">
-                    {['Appointments', 'Doctors', 'Emergency', 'Lab Tests'].map((term, index) => (
-                      <motion.button
-                        key={term}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 + index * 0.1 }}
-                        onClick={() => setSearchQuery(term)}
-                        className="px-4 py-1 bg-[#77B254] hover:bg-white/30 hover:text-[#77B254]
-                                 rounded-full text-sm text-white backdrop-blur-sm
-                                 transition-colors duration-300"
-                      >
-                        {term}
-                      </motion.button>
-                    ))}
+                    {userType === 'DOCTOR' 
+                      ? ['Appointments', 'Patients', 'Consultations', 'Reports'].map((term, index) => (
+                          <motion.button
+                            key={term}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 + index * 0.1 }}
+                            onClick={() => setSearchQuery(term)}
+                            className="px-4 py-1 bg-[#77B254] hover:bg-white/30 hover:text-[#77B254]
+                                     rounded-full text-sm text-white backdrop-blur-sm
+                                     transition-colors duration-300"
+                          >
+                            {term}
+                          </motion.button>
+                        ))
+                      : ['Appointments', 'Doctors', 'Emergency', 'Lab Tests'].map((term, index) => (
+                          <motion.button
+                            key={term}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 + index * 0.1 }}
+                            onClick={() => setSearchQuery(term)}
+                            className="px-4 py-1 bg-[#77B254] hover:bg-white/30 hover:text-[#77B254]
+                                     rounded-full text-sm text-white backdrop-blur-sm
+                                     transition-colors duration-300"
+                          >
+                            {term}
+                          </motion.button>
+                        ))
+                    }
                   </div>
                 </form>
               </motion.div>
@@ -283,10 +358,13 @@ const FeaturesPage = () => {
             className="text-center mb-16"
           >
             <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
-              Our Healthcare Services
+              {userType === 'DOCTOR' ? 'Practice Management Tools' : 'Our Healthcare Services'}
             </h2>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              Comprehensive healthcare solutions designed to provide you with the best medical care experience
+              {userType === 'DOCTOR'
+                ? "Everything you need to manage your practice and provide excellent patient care"
+                : "Comprehensive healthcare solutions designed to provide you with the best medical care experience"
+              }
             </p>
           </motion.div>
 
@@ -333,7 +411,7 @@ const FeaturesPage = () => {
                     {/* Action Button */}
                     <div className="mt-auto">
                       <button 
-                        onClick={() => navigate(feature.link || `/${feature.id}`)}
+                        onClick={feature.onClick}
                         className="relative inline-flex items-center justify-center w-full
                                  px-6 py-3 text-base font-medium rounded-xl
                                  text-[#77B254] hover:text-white
@@ -453,7 +531,7 @@ const FeaturesPage = () => {
                           {/* Action Button */}
                           <div className="mt-auto">
                             <button 
-                              onClick={() => navigate(service.link || `/${service.id}`)}
+                              onClick={() => navigate(`/${service.id}`)}
                               className="relative inline-flex items-center justify-center w-full
                                        px-6 py-3 text-base font-medium rounded-xl
                                        text-[#77B254] hover:text-white

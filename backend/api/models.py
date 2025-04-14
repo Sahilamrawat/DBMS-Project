@@ -1,208 +1,333 @@
-from django.db import models
-from django.contrib.auth.models import User
+from django.db import connection
+import json
+from datetime import datetime
 from django.utils import timezone
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-import random
-import string
-# Create your models here.
 
-def generate_unique_patient_id():
-    year = timezone.now().strftime('%Y')
-    while True:
-        random_digits = ''.join(random.choices(string.digits, k=4))
-        new_id = f'PAT{year}{random_digits}'
-        if not Profile.objects.filter(patient_id=new_id).exists():
-            return new_id
+def execute_query(query, params=None, fetch=True):
+    """Execute a SQL query and return results if fetch is True"""
+    with connection.cursor() as cursor:
+        try:
+            cursor.execute(query, params or ())
+            if fetch:
+                columns = [col[0] for col in cursor.description]
+                results = [
+                    dict(zip(columns, row))
+                    for row in cursor.fetchall()
+                ]
+                return results
+            else:
+                return cursor.lastrowid
+        except Exception as e:
+            raise e
 
-class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    patient_id = models.CharField(max_length=15, unique=True, editable=False, null=True)
-    first_name = models.CharField(max_length=100, null=True)
-    last_name = models.CharField(max_length=100, null=True)
-    email = models.EmailField(max_length=100, null=True)
-    adhaar_number = models.CharField(max_length=12, unique=True, null=True)
-    patient_type = models.CharField(max_length=50, default="TBE")  # Example: 'inpatient' or 'outpatient'
-    dob = models.DateField(null=True)
-    gender = models.CharField(max_length=10, null=True)
-    address = models.TextField()
-    phone = models.CharField(max_length=15)
-    blood_group = models.CharField(max_length=5, null=True, blank=True)
-    height = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    weight = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    emergency_contact = models.CharField(max_length=15, null=True, blank=True)
-    insurance_status = models.CharField(max_length=20, null=True, blank=True)
-    insurance_number = models.CharField(max_length=50, null=True, blank=True)
-    allergies = models.TextField(null=True, blank=True)
-    medical_conditions = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(default=timezone.now)
-    class Meta:
-        db_table = 'Patient'  # 🧠 Custom table name here
+# Table creation queries
+CREATE_TABLES = {
+    'User': """
+        CREATE TABLE IF NOT EXISTS User (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(150) UNIQUE NOT NULL,
+            email VARCHAR(254) UNIQUE NOT NULL,
+            password VARCHAR(128) NOT NULL,
+            first_name VARCHAR(30),
+            last_name VARCHAR(150),
+            is_staff BOOLEAN DEFAULT FALSE,
+            is_active BOOLEAN DEFAULT TRUE,
+            date_joined DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """,
+    'Note': """
+        CREATE TABLE IF NOT EXISTS Note (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(100) NOT NULL,
+            content TEXT NOT NULL,
+            user_id INT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES User(id) ON DELETE CASCADE
+        )
+    """,
+    'Profile': """
+        CREATE TABLE IF NOT EXISTS Profile (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            profile_picture VARCHAR(100),
+            address TEXT,
+            phone VARCHAR(20),
+            date_of_birth DATE,
+            gender VARCHAR(10),
+            blood_group VARCHAR(5),
+            FOREIGN KEY (user_id) REFERENCES User(id) ON DELETE CASCADE
+        )
+    """,
+    'Doctor': """
+        CREATE TABLE IF NOT EXISTS Doctor (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            specialization VARCHAR(100),
+            qualification TEXT,
+            experience INT,
+            consultation_fee DECIMAL(10,2),
+            schedule JSON,
+            FOREIGN KEY (user_id) REFERENCES User(id) ON DELETE CASCADE
+        )
+    """,
+    'Patient': """
+        CREATE TABLE IF NOT EXISTS Patient (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            first_name VARCHAR(100),
+            last_name VARCHAR(100),
+            email VARCHAR(254),
+            address TEXT,
+            phone VARCHAR(20),
+            patient_type VARCHAR(50),
+            FOREIGN KEY (user_id) REFERENCES User(id) ON DELETE CASCADE
+        )
+    """,
+    'Appointment': """
+        CREATE TABLE IF NOT EXISTS Appointment (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            appointment_id VARCHAR(20) UNIQUE NOT NULL,
+            patient_id INT NOT NULL,
+            doctor_id INT NOT NULL,
+            patient_id_display VARCHAR(100),
+            doctor_id_display VARCHAR(100),
+            appointment_date DATETIME NOT NULL,
+            appointment_mode VARCHAR(20) DEFAULT 'IN_PERSON',
+            appointment_fee DECIMAL(10,2),
+            symptoms TEXT,
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES Patient(id) ON DELETE CASCADE,
+            FOREIGN KEY (doctor_id) REFERENCES Doctor(id) ON DELETE CASCADE
+        )
+    """,
+    'Consultancy': """
+        CREATE TABLE IF NOT EXISTS Consultancy (
+            consult_id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_id INT NOT NULL,
+            doctor_id INT NOT NULL,
+            consultation_type VARCHAR(50),
+            appointment_date DATE,
+            appointment_time TIME,
+            diagnosis TEXT,
+            treatment TEXT,
+            allergies TEXT,
+            past_surgeries TEXT,
+            previous_medications TEXT,
+            consultation_notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES Patient(id) ON DELETE CASCADE,
+            FOREIGN KEY (doctor_id) REFERENCES Doctor(id) ON DELETE CASCADE
+        )
+    """,
+    'Emergency': """
+        CREATE TABLE IF NOT EXISTS Emergency (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_id INT NOT NULL,
+            doctor_id INT,
+            request_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+            ambulance_assign_status VARCHAR(20) DEFAULT 'No',
+            ambulance_assigned VARCHAR(100),
+            status VARCHAR(50) DEFAULT 'Pending',
+            arrival_time_in_hospital DATETIME,
+            driver_name VARCHAR(100),
+            driver_contact_num VARCHAR(20),
+            legal_issues_reported VARCHAR(20) DEFAULT 'No',
+            legal_case_number VARCHAR(100),
+            FOREIGN KEY (patient_id) REFERENCES Patient(id) ON DELETE CASCADE,
+            FOREIGN KEY (doctor_id) REFERENCES Doctor(id) ON DELETE SET NULL
+        )
+    """
+}
 
-    def __str__(self):
-        return f"{self.patient_id} - {self.user.username}'s profile"
-
-    def save(self, *args, **kwargs):
-        if not self.patient_id:
-            self.patient_id = generate_unique_patient_id()
-        super(Profile, self).save(*args, **kwargs)
-
-# Signal to create profile when user is created
-@receiver(post_save, sender=User)
-def create_user_profile(sender, instance, created, **kwargs):
-    if created:
-        Profile.objects.create(user=instance)
-
-# Signal to save profile when user is saved
-@receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
+def drop_all_tables():
+    """Drop all tables in the correct order to handle foreign key constraints"""
     try:
-        instance.profile.save()
-    except Profile.DoesNotExist:
-        Profile.objects.create(user=instance)
+        # Drop tables in reverse order of dependencies
+        tables = [
+            'api_note',
+            'api_emergency',
+            'api_consultancy',
+            'api_appointment',
+            'api_doctor',
+            'api_patient',
+            'api_profile'
+        ]
+        
+        for table in tables:
+            execute_query(f"DROP TABLE IF EXISTS {table}", [], fetch=False)
+        
+        print("All custom tables dropped successfully")
+        return True
+    except Exception as e:
+        print(f"Error dropping tables: {str(e)}")
+        return False
 
-class Note(models.Model):
-    title = models.CharField(max_length=100)
-    content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE,related_name='notes')
+def initialize_database():
+    """Initialize the database with required tables"""
+    try:
+        # Create User table
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS auth_user (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(150) UNIQUE NOT NULL,
+                password VARCHAR(128) NOT NULL,
+                email VARCHAR(254) UNIQUE NOT NULL,
+                first_name VARCHAR(30),
+                last_name VARCHAR(150),
+                is_active BOOLEAN DEFAULT TRUE,
+                is_staff BOOLEAN DEFAULT FALSE,
+                is_superuser BOOLEAN DEFAULT FALSE,
+                date_joined DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_login DATETIME
+            )
+        """, [], fetch=False)
 
-    def __str__(self):
-        return self.title
+        # Create Profile table with all necessary fields
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS api_profile (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                phone VARCHAR(15),
+                address TEXT,
+                date_of_birth DATE,
+                gender VARCHAR(10),
+                blood_group VARCHAR(5),
+                height DECIMAL(5,2),
+                weight DECIMAL(5,2),
+                emergency_contact VARCHAR(15),
+                insurance_status VARCHAR(20),
+                insurance_number VARCHAR(50),
+                allergies TEXT,
+                medical_conditions TEXT,
+                user_type VARCHAR(20) DEFAULT 'PATIENT',
+                profile_picture VARCHAR(255),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES auth_user(id) ON DELETE CASCADE
+            )
+        """, [], fetch=False)
 
-class Doctor(models.Model):
-    doctor_id = models.CharField(max_length=15, unique=True, editable=False)
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    qualification = models.CharField(max_length=200)
-    specialization = models.CharField(max_length=100)
-    schedule = models.JSONField()  # Store working hours and days
-    contact_info = models.CharField(max_length=100)
-    image = models.ImageField(upload_to='doctor_images/', null=True, blank=True)
-    bio = models.TextField(null=True, blank=True)
-    experience_years = models.IntegerField(default=0)
-    consultation_fee = models.DecimalField(max_digits=10, decimal_places=2)
-    
-    class Meta:
-        db_table = 'Doctor'
+        # Create Patient table with all necessary fields
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS api_patient (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                patient_id VARCHAR(20) UNIQUE NOT NULL,
+                adhaar_number VARCHAR(12) UNIQUE,
+                patient_type VARCHAR(20) DEFAULT 'outpatient',
+                registration_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_visit_date DATETIME,
+                next_appointment_date DATETIME,
+                medical_history TEXT,
+                current_medications TEXT,
+                family_history TEXT,
+                lifestyle_factors TEXT,
+                vaccination_history TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES auth_user(id) ON DELETE CASCADE
+            )
+        """, [], fetch=False)
 
-    def __str__(self):
-        return f"Dr. {self.first_name} {self.last_name} - {self.specialization}"
+        # Create Doctor table with all necessary fields
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS api_doctor (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                doctor_id VARCHAR(20) UNIQUE NOT NULL,
+                specialization VARCHAR(50),
+                consultation_fee DECIMAL(10,2),
+                experience_years INT,
+                qualifications TEXT,
+                available_days TEXT,
+                available_hours TEXT,
+                is_available BOOLEAN DEFAULT TRUE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES auth_user(id) ON DELETE CASCADE
+            )
+        """, [], fetch=False)
 
-    def save(self, *args, **kwargs):
-        if not self.doctor_id:
-            year = timezone.now().strftime('%Y')
-            while True:
-                random_digits = ''.join(random.choices(string.digits, k=4))
-                new_id = f'DOC{year}{random_digits}'
-                if not Doctor.objects.filter(doctor_id=new_id).exists():
-                    self.doctor_id = new_id
-                    break
-        super().save(*args, **kwargs)
+        # Create Appointment table
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS api_appointment (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                patient_id INT NOT NULL,
+                doctor_id INT NOT NULL,
+                appointment_date DATETIME NOT NULL,
+                appointment_time TIME NOT NULL,
+                status VARCHAR(20) DEFAULT 'PENDING',
+                symptoms TEXT,
+                notes TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (patient_id) REFERENCES api_patient(id) ON DELETE CASCADE,
+                FOREIGN KEY (doctor_id) REFERENCES api_doctor(id) ON DELETE CASCADE
+            )
+        """, [], fetch=False)
 
-class Appointment(models.Model):
-    APPOINTMENT_STATUS = [
-        ('SCHEDULED', 'Scheduled'),
-        ('COMPLETED', 'Completed'),
-        ('CANCELLED', 'Cancelled'),
-        ('NO_SHOW', 'No Show'),
-    ]
-    
-    APPOINTMENT_MODE = [
-        ('ONLINE', 'Online'),
-        ('IN_PERSON', 'In Person'),
-    ]
+        # Create Consultancy table
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS api_consultancy (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                patient_id INT NOT NULL,
+                doctor_id INT NOT NULL,
+                appointment_id INT NOT NULL,
+                diagnosis TEXT,
+                prescription TEXT,
+                follow_up_date DATE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (patient_id) REFERENCES api_patient(id) ON DELETE CASCADE,
+                FOREIGN KEY (doctor_id) REFERENCES api_doctor(id) ON DELETE CASCADE,
+                FOREIGN KEY (appointment_id) REFERENCES api_appointment(id) ON DELETE CASCADE
+            )
+        """, [], fetch=False)
 
-    appointment_id = models.CharField(max_length=15, unique=True, editable=False)
-    patient = models.ForeignKey(Profile, on_delete=models.CASCADE)
-    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)
-    patient_id_display = models.CharField(max_length=15, editable=False, null=True)
-    doctor_id_display = models.CharField(max_length=15, editable=False, null=True)
-    appointment_date = models.DateTimeField()
-    appoint_status = models.CharField(max_length=20, choices=APPOINTMENT_STATUS, default='SCHEDULED')
-    appointment_fee = models.DecimalField(max_digits=10, decimal_places=2)
-    appointment_mode = models.CharField(max_length=20, choices=APPOINTMENT_MODE, default='IN_PERSON')
-    symptoms = models.TextField(null=True, blank=True)
-    notes = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'Appointment'
+        # Create Emergency table
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS api_emergency (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                patient_id INT NOT NULL,
+                doctor_id INT NOT NULL,
+                emergency_type VARCHAR(50),
+                severity VARCHAR(20),
+                symptoms TEXT,
+                treatment_given TEXT,
+                status VARCHAR(20) DEFAULT 'PENDING',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (patient_id) REFERENCES api_patient(id) ON DELETE CASCADE,
+                FOREIGN KEY (doctor_id) REFERENCES api_doctor(id) ON DELETE CASCADE
+            )
+        """, [], fetch=False)
 
-    def __str__(self):
-        return f"{self.appointment_id} - Patient: {self.patient_id_display or 'N/A'} - Doctor: {self.doctor_id_display or 'N/A'}"
+        # Create Note table
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS api_note (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                title VARCHAR(100),
+                content TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES auth_user(id) ON DELETE CASCADE
+            )
+        """, [], fetch=False)
 
-    def save(self, *args, **kwargs):
-        if not self.appointment_id:
-            year = timezone.now().strftime('%Y')
-            while True:
-                random_digits = ''.join(random.choices(string.digits, k=4))
-                new_id = f'APT{year}{random_digits}'
-                if not Appointment.objects.filter(appointment_id=new_id).exists():
-                    self.appointment_id = new_id
-                    break
-        if self.patient and self.patient.patient_id:
-            self.patient_id_display = self.patient.patient_id
-        if self.doctor and self.doctor.doctor_id:
-            self.doctor_id_display = self.doctor.doctor_id
-        super().save(*args, **kwargs)
-
-
-class Consultancy(models.Model):
-    CONSULTATION_TYPE_CHOICES = [
-        ('Chat', 'Chat'),
-        ('Audio call', 'Audio call'),
-        ('Video Call', 'Video Call'),
-    ]
-
-    consult_id = models.AutoField(primary_key=True)
-    patient = models.ForeignKey(Profile, on_delete=models.CASCADE)
-    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)
-    patient_id_display = models.CharField(max_length=15, editable=False, null=True, blank=True)
-    doctor_id_display = models.CharField(max_length=15, editable=False, null=True, blank=True)
-    consultation_type = models.CharField(max_length=20, choices=CONSULTATION_TYPE_CHOICES)
-    
-    # Medical History Fields
-    diagnosis = models.TextField(null=True, blank=True)
-    treatment = models.TextField(null=True, blank=True)
-    allergies = models.TextField(null=True, blank=True)
-    past_surgeries = models.TextField(null=True, blank=True)
-    previous_medications = models.TextField(null=True, blank=True)
-    
-    # Consultation Details
-    consultation_notes = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'Consultancy'
-        managed = True  # Explicitly set managed to True
-
-    def __str__(self):
-        return f"Consultancy {self.consult_id} - {self.patient} with Dr. {self.doctor.last_name}"
-
-    def save(self, *args, **kwargs):
-        if self.patient and self.patient.patient_id:
-            self.patient_id_display = self.patient.patient_id
-        if self.doctor and self.doctor.doctor_id:
-            self.doctor_id_display = self.doctor.doctor_id
-        super().save(*args, **kwargs)
-
-class Emergency(models.Model):
-    STATUS_CHOICES = [('Pending', 'Pending'), ('Arrived', 'Arrived'), ('Completed', 'Completed')]
-    YES_NO_CHOICES = [('Yes', 'Yes'), ('No', 'No')]
-
-    patient = models.ForeignKey('Profile', on_delete=models.CASCADE)
-    doctor = models.ForeignKey('Doctor', on_delete=models.SET_NULL, null=True, blank=True)
-    request_time = models.DateTimeField(auto_now_add=True)
-    ambulance_assign_status = models.CharField(max_length=3, choices=YES_NO_CHOICES)
-    ambulance_assigned = models.CharField(max_length=20, null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
-    arrival_time_in_hospital = models.DateTimeField(null=True, blank=True)
-    driver_name = models.CharField(max_length=50, null=True, blank=True)
-    driver_contact_num = models.CharField(max_length=15, null=True, blank=True)
-    legal_issues_reported = models.CharField(max_length=3, choices=YES_NO_CHOICES)
-    legal_case_number = models.CharField(max_length=20, null=True, blank=True)
-
-    def __str__(self):
-        return f"Emergency for Patient {self.patient.id} - {self.status}"
+        print("Database initialized successfully!")
+        print("Created tables:")
+        print("- User table")
+        print("- Profile table")
+        print("- Patient table")
+        print("- Doctor table")
+        print("- Appointment table")
+        print("- Consultancy table")
+        print("- Emergency table")
+        print("- Note table")
+        
+    except Exception as e:
+        print(f"Error initializing database: {str(e)}")
+        raise

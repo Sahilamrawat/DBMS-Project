@@ -8,3 +8,4 @@ pytz
 sqlparse
 mysqlclient
 python-dotenv
+mysql-connector-python

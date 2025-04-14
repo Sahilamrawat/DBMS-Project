@@ -15,6 +15,8 @@ import Profile from './pages/Profile'
 import Appointment from './pages/Appointment'
 import Doctor from './pages/Doctor'
 import Consultancy from './pages/Consultancy'
+import DoctorProfile from './pages/DoctorProfile'
+import ManageAppointments from './pages/ManageAppointments'
 
 
 function Logout(){
@@ -41,9 +43,11 @@ function App() {
         <Route path="/register" element={<RegisterAndLogout />} />
         <Route path="/services" element={<FeaturesPage />} />
         <Route path='profile' element={<Profile/>}/>
+        <Route path='/doctor-profile' element={<DoctorProfile/>}/>
         <Route path="/appointments" element={<Appointment />} />
         <Route path='/doctors' element={<Doctor/>} />
         <Route path='/consultations' element={<Consultancy/>} />
+        <Route path='/doctor/appointments' element={<ManageAppointments/>} />
         
       </Routes>
     </BrowserRouter>

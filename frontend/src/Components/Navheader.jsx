@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import '../index.css';
 import { useNavigate } from 'react-router-dom';
-import { ACCESS_TOKEN } from '../constants';
+import { ACCESS_TOKEN, REFRESH_TOKEN } from '../constants';
 import { FaUserCircle } from 'react-icons/fa';
 
 function Navheader() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [userType, setUserType] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,26 +21,64 @@ function Navheader() {
       }
     };
 
-    // Check if user is logged in
+    // Check if user is logged in and get user type
     const token = localStorage.getItem(ACCESS_TOKEN);
+    const storedUserType = localStorage.getItem('user_type');
     setIsLoggedIn(!!token);
+    setUserType(storedUserType);
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Add a listener for storage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const token = localStorage.getItem(ACCESS_TOKEN);
+      const storedUserType = localStorage.getItem('user_type');
+      setIsLoggedIn(!!token);
+      setUserType(storedUserType);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem(ACCESS_TOKEN);
+    localStorage.removeItem(REFRESH_TOKEN);
+    localStorage.removeItem('user_type');
     setIsLoggedIn(false);
+    setUserType(null);
     navigate('/login');
   };
 
-  const navItems = [
-    { name: 'Home', path: '/' },
-    { name: 'Services', path: '/services' },
-    { name: 'About Us', path: '/about' },
-    { name: 'Contact', path: '/contact' }
-  ];
+  const handleProfileClick = () => {
+    if (userType === 'DOCTOR') {
+      navigate('/doctor-profile');
+    } else if (userType === 'PATIENT') {
+      navigate('/profile');
+    } else {
+      // Default to regular profile if user type is not set
+      navigate('/profile');
+    }
+    setShowProfileMenu(false);
+  };
+
+  const getNavItems = () => {
+    const baseItems = [
+      { name: 'Home', path: '/' },
+      { name: 'Services', path: '/services' },
+      { name: 'About Us', path: '/about' },
+      { name: 'Contact', path: '/contact' }
+    ];
+
+    
+
+    return baseItems;
+  };
+
+  const navItems = getNavItems();
 
   const handleNavigation = (path) => {
     navigate(path);
@@ -136,10 +175,7 @@ function Navheader() {
               {showProfileMenu && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
                   <button
-                    onClick={() => {
-                      navigate('/profile');
-                      setShowProfileMenu(false);
-                    }}
+                    onClick={handleProfileClick}
                     className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50"
                   >
                     Profile

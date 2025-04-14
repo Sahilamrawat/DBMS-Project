@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { FaUser, FaEnvelope, FaPhone, FaAddressCard, FaIdCard, FaCalendarAlt, FaVenusMars, FaUserMd, FaCamera, FaHistory, FaCalendar, FaPrescription, FaFileMedical, FaUserCircle } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaAddressCard, FaIdCard, FaCalendarAlt, FaVenusMars, FaUserMd, FaCamera, FaHistory, FaCalendar, FaPrescription, FaFileMedical, FaUserCircle, FaSpinner } from 'react-icons/fa';
 import api from '../api'; // Keep this import
 import Navheader from '../Components/Navheader';
 
@@ -22,32 +22,72 @@ function Profile() {
     setLoading(true);
     setError(null);
     try {
-      // Use the api instance directly
-      const response = await api.get('/api/profile/'); 
-      const data = response.data; // Extract data from response
-      setProfileData(data);
+      const response = await api.get('/api/profile/');
+      const data = response.data;
       
-      if (data.profile_picture_url) {
+      // Combine all relevant data
+      const combinedProfileData = {
+        // User data
+        ...data.user,
+        // Profile data
+        ...data.profile,
+        // Patient data if exists
+        ...(data.patient || {}),
+        // Doctor data if exists
+        ...(data.doctor || {}),
+        // Add appointments data
+        appointments: data.appointments || [],
+        // Add any additional fields that should be displayed
+        first_name: data.user.first_name,
+        last_name: data.user.last_name,
+        email: data.user.email,
+        username: data.user.username,
+        // Format dates if they exist
+        date_joined: data.user.date_joined ? new Date(data.user.date_joined).toISOString() : null,
+        last_login: data.user.last_login ? new Date(data.user.last_login).toISOString() : null,
+        date_of_birth: data.profile.date_of_birth ? new Date(data.profile.date_of_birth).toISOString() : null,
+        registration_date: data.patient?.registration_date ? new Date(data.patient.registration_date).toISOString() : null,
+        last_visit_date: data.patient?.last_visit_date ? new Date(data.patient.last_visit_date).toISOString() : null,
+        next_appointment_date: data.patient?.next_appointment_date ? new Date(data.patient.next_appointment_date).toISOString() : null
+      };
+      
+      setProfileData(combinedProfileData);
+      
+      if (data.profile.profile_picture) {
           // Construct full URL if the backend provides a relative path
-          // Ensure the base URL is correctly determined
           let baseUrl = api.defaults.baseURL || ''; 
           if (baseUrl.endsWith('/api')) {
               baseUrl = baseUrl.replace('/api', '');
           } else if (baseUrl.endsWith('/api/')) {
               baseUrl = baseUrl.replace('/api/', '');
           }
-          // Handle potential leading slash in profile_picture_url
-          const imageUrl = data.profile_picture_url.startsWith('/') ? data.profile_picture_url : `/${data.profile_picture_url}`;
+          // Handle potential leading slash in profile_picture
+          const imageUrl = data.profile.profile_picture.startsWith('/') ? data.profile.profile_picture : `/${data.profile.profile_picture}`;
           setProfilePicPreview(baseUrl + imageUrl);
       } else {
           setProfilePicPreview(null); // Reset preview if no URL
       }
+
+      // Log the data for debugging
+      console.log('Profile Data:', combinedProfileData);
+      
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Could not load profile data.');
-      console.error("Fetch Profile Error:", err.response || err);
+      console.error("Error fetching profile data:", err);
+      setError(err.response?.data?.error || err.message || 'Could not load profile data.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Add a function to format dates
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Not specified';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   const handleInputChange = (e) => {
@@ -90,8 +130,8 @@ function Profile() {
               // Handle date objects correctly (format as YYYY-MM-DD)
               if (dataToUpdate[key] instanceof Date) {
                   formData.append(key, dataToUpdate[key].toISOString().split('T')[0]); 
-              } else if (key === 'dob' && typeof dataToUpdate[key] === 'string' && dataToUpdate[key].includes('T')) {
-                  // Handle if DOB is already a string from state but needs formatting
+              } else if (key === 'date_of_birth' && typeof dataToUpdate[key] === 'string' && dataToUpdate[key].includes('T')) {
+                  // Handle if date_of_birth is already a string from state but needs formatting
                   formData.append(key, dataToUpdate[key].split('T')[0]);
               }
               // Handle the profile picture file separately below
@@ -115,12 +155,12 @@ function Profile() {
               },
           });
           
-          setProfileData(response.data); // Update state with response from server
-          if (response.data.profile_picture_url) { // Update preview based on new URL from server
+          setProfileData(response.data.profile); // Update state with response from server
+          if (response.data.profile.profile_picture_url) { // Update preview based on new URL from server
              let baseUrl = api.defaults.baseURL || ''; 
              if (baseUrl.endsWith('/api')) { baseUrl = baseUrl.replace('/api', ''); }
              else if (baseUrl.endsWith('/api/')) { baseUrl = baseUrl.replace('/api/', ''); }
-             const imageUrl = response.data.profile_picture_url.startsWith('/') ? response.data.profile_picture_url : `/${response.data.profile_picture_url}`;
+             const imageUrl = response.data.profile.profile_picture_url.startsWith('/') ? response.data.profile.profile_picture_url : `/${response.data.profile.profile_picture_url}`;
              setProfilePicPreview(baseUrl + imageUrl);
           }
           setProfilePicFile(null); // Clear the staged file
@@ -152,7 +192,17 @@ function Profile() {
   };
 
   // --- Render Logic (remains the same) ---
-  if (loading && !profileData) return <div className="flex justify-center items-center min-h-screen"><p className="text-xl text-[#77B254]">Loading Profile...</p></div>;
+  if (loading && !profileData) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-50 via-white to-gray-50">
+        <div className="text-center">
+          <FaSpinner className="text-6xl text-[#77B254] animate-spin mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800">Loading Profile...</h2>
+          <p className="text-gray-600 mt-2">Please wait while we fetch your profile data</p>
+        </div>
+      </div>
+    );
+  }
   if (error && !isEditing) return <div className="flex flex-col justify-center items-center min-h-screen"><p className="text-xl text-red-500">Error: {error}</p><button onClick={fetchProfileData} className="mt-4 px-4 py-2 bg-[#77B254] text-white rounded">Try Again</button></div>; // Show error outside edit mode
   if (!profileData && !loading) return <div className="flex justify-center items-center min-h-screen"><p className="text-xl text-gray-500">No profile data found.</p></div>;
 
@@ -405,7 +455,7 @@ function Profile() {
                             />
                           ) : (
                             <p className="mt-1 text-gray-800">
-                              {profileData?.dob ? new Date(profileData.dob).toLocaleDateString() : 'N/A'}
+                              {formatDate(profileData?.date_of_birth)}
                             </p>
                           )}
                         </div>
@@ -686,9 +736,45 @@ function Profile() {
                   <FaCalendar className="mr-2 text-[#77B254]" />
                   Recent Appointments
                 </h3>
-                <div className="text-center text-gray-500 py-8">
-                  <p>No recent appointments</p>
-                </div>
+                {profileData?.appointments && profileData.appointments.length > 0 ? (
+                  <div className="space-y-4">
+                    {profileData.appointments
+                      .filter(apt => apt.status === 'COMPLETED')
+                      .sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date))
+                      .slice(0, 3)
+                      .map((appointment) => (
+                        <div key={appointment.id} className="border-b border-gray-100 pb-4 last:border-0">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-gray-800">
+                                {appointment.doctor_name}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(appointment.appointment_date).toLocaleDateString()} at{' '}
+                                {new Date(appointment.appointment_date).toLocaleTimeString()}
+                              </p>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              appointment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                              appointment.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {appointment.status}
+                            </span>
+                          </div>
+                          {appointment.symptoms && (
+                            <p className="text-sm text-gray-600 mt-2">
+                              Symptoms: {appointment.symptoms}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    <p>No recent appointments</p>
+                  </div>
+                )}
               </motion.div>
 
               {/* Prescriptions Card */}
@@ -719,16 +805,62 @@ function Profile() {
                     <FaCalendar className="mr-2 text-[#77B254]" />
                     Upcoming Appointments
                   </div>
-                  <button className="text-sm text-[#77B254] hover:text-green-600 transition-colors duration-200">
+                  <button 
+                    onClick={() => window.location.href = '/appointments'}
+                    className="text-sm text-[#77B254] hover:text-green-600 transition-colors duration-200"
+                  >
                     Schedule New
                   </button>
                 </h3>
-                <div className="text-center text-gray-500 py-8">
-                  <p>No upcoming appointments scheduled</p>
-                  <button className="mt-4 text-[#77B254] hover:text-green-600 transition-colors duration-200">
-                    View Appointment History
-                  </button>
-                </div>
+                {profileData?.appointments && profileData.appointments.length > 0 ? (
+                  <div className="space-y-4">
+                    {profileData.appointments
+                      .filter(apt => new Date(apt.appointment_date) >= new Date())
+                      .sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date))
+                      .map((appointment) => (
+                        <div key={appointment.id} className="border-b border-gray-100 pb-4 last:border-0">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-gray-800">
+                                {appointment.doctor_name}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(appointment.appointment_date).toLocaleDateString()} at{' '}
+                                {new Date(appointment.appointment_date).toLocaleTimeString()}
+                              </p>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              appointment.status === 'SCHEDULED' ? 'bg-green-100 text-green-800' :
+                              appointment.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {appointment.status}
+                            </span>
+                          </div>
+                          {appointment.symptoms && (
+                            <p className="text-sm text-gray-600 mt-2">
+                              Symptoms: {appointment.symptoms}
+                            </p>
+                          )}
+                          {appointment.notes && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              Notes: {appointment.notes}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    <p>No upcoming appointments scheduled</p>
+                    <button 
+                      onClick={() => window.location.href = '/appointments'}
+                      className="mt-4 text-[#77B254] hover:text-green-600 transition-colors duration-200"
+                    >
+                      Schedule an Appointment
+                    </button>
+                  </div>
+                )}
               </motion.div>
             </div>
           </div>

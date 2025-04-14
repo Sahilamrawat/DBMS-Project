@@ -1,8 +1,8 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Note, Profile, Doctor, Appointment , Consultancy ,Emergency
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.password_validation import validate_password
 
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'username'
@@ -21,127 +21,186 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
         if not user:
             raise serializers.ValidationError("Invalid email or password.")
 
+        data = super().validate(attrs)
+        refresh = self.get_token(self.user)
+        data['refresh'] = str(refresh)
+        data['access'] = str(refresh.access_token)
         
-        return super().validate(attrs)
-
-
-class UserRegistrationSerializer(serializers.ModelSerializer):
-    # New Profile Fields
-    username = serializers.CharField(write_only=True)
-    first_name = serializers.CharField(write_only=True)
-    last_name = serializers.CharField(write_only=True)
-    email=serializers.EmailField(write_only=True);
-    adhaar_number = serializers.CharField(write_only=True)
-    patient_type = serializers.CharField(write_only=True)
-    dob = serializers.DateField(write_only=True)
-    gender = serializers.CharField(write_only=True)
-    phone = serializers.CharField(write_only=True)
-    address = serializers.CharField(write_only=True)
-    password = serializers.CharField(write_only=True)
-    class Meta:
-        model = User
-        fields = [
-            'username', 'email', 'password',
-            'first_name', 'last_name', 'adhaar_number',
-            'patient_type', 'dob', 'gender', 'phone', 'address'
-        ]
-    def create(self, validated_data):
-        profile_data = {
-            'first_name': validated_data.pop('first_name'),
-            'last_name': validated_data.pop('last_name'),
-            'email': validated_data.pop('email'),
-            'adhaar_number': validated_data.pop('adhaar_number'),
-            'patient_type': validated_data.pop('patient_type'),
-            'dob': validated_data.pop('dob'),
-            'gender': validated_data.pop('gender'),
-            'phone': validated_data.pop('phone'),
-            'address': validated_data.pop('address'),
+        # Add user details to the response
+        data['user'] = {
+            'id': self.user.id,
+            'username': self.user.username,
+            'email': self.user.email,
+            'user_type': self.user.user_type
         }
         
-        password = validated_data.pop('password')
-        print("Creating user with data:", validated_data)
+        return data
 
-        # Create user
-        user = User.objects.create_user(**validated_data)
-        user.set_password(password)
-        user.save()
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True, required=True)
 
-        # Create Profile
-        Profile.objects.create(user=user, **profile_data)
+    class Meta:
+        model = User
+        fields = ('username', 'password', 'password2', 'email', 'first_name', 'last_name')
+        extra_kwargs = {
+            'first_name': {'required': True},
+            'last_name': {'required': True}
+        }
 
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password2']:
+            raise serializers.ValidationError({"password": "Password fields didn't match."})
+        return attrs
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name']
+        )
         return user
-    
-class ProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Profile
-        fields = [
-            'patient_id', 'first_name', 'last_name', 'email', 'adhaar_number',
-            'patient_type', 'dob', 'gender', 'phone', 'address', 
-            'blood_group', 'height', 'weight', 'emergency_contact',
-            'insurance_status', 'insurance_number', 'allergies',
-            'medical_conditions', 'created_at'
+
+class NoteSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    title = serializers.CharField(required=True)
+    content = serializers.CharField(required=True)
+    user_id = serializers.IntegerField(required=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    def create(self, validated_data):
+        from .models import execute_query
+        query = """
+            INSERT INTO Note (title, content, user_id)
+            VALUES (%s, %s, %s)
+        """
+        params = [
+            validated_data['title'],
+            validated_data['content'],
+            validated_data['user_id']
         ]
-        read_only_fields = ['patient_id']  # Make patient_id read-only
-class NoteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Note
-        fields = ['id', 'title', 'content', 'created_at', 'updated_at', 'user']
-        extra_kwargs = {"user": {"read_only": True}}
+        note_id = execute_query(query, params, fetch=False)
+        return {**validated_data, 'id': note_id}
 
-class DoctorSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Doctor
-        fields = ['id', 'doctor_id', 'first_name', 'last_name', 'qualification', 
-                 'specialization', 'schedule', 'contact_info', 'image', 'bio', 
-                 'experience_years', 'consultation_fee']
-
-class AppointmentSerializer(serializers.ModelSerializer):
-    doctor_name = serializers.SerializerMethodField()
-    patient_name = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Appointment
-        fields = [
-            'id', 'appointment_id', 
-            'doctor', 'doctor_id_display', 'doctor_name',
-            'patient', 'patient_id_display', 'patient_name',
-            'appointment_date', 'appointment_mode', 
-            'appoint_status', 'appointment_fee',
-            'symptoms', 'notes', 'created_at'
+    def update(self, instance, validated_data):
+        from .models import execute_query
+        query = """
+            UPDATE Note 
+            SET title = %s,
+                content = %s
+            WHERE id = %s
+        """
+        params = [
+            validated_data.get('title', instance.get('title')),
+            validated_data.get('content', instance.get('content')),
+            instance['id']
         ]
-        read_only_fields = ['appointment_id', 'patient', 'appointment_fee', 
-                           'patient_id_display', 'doctor_id_display']
+        execute_query(query, params, fetch=False)
+        return {**instance, **validated_data}
 
-    def get_doctor_name(self, obj):
-        return f"Dr. {obj.doctor.first_name} {obj.doctor.last_name}"
+class ProfileSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    user_id = serializers.IntegerField(read_only=True)
+    profile_picture = serializers.ImageField(required=False)
+    address = serializers.CharField(required=False)
+    phone = serializers.CharField(required=False)
+    date_of_birth = serializers.DateField(required=False)
+    gender = serializers.CharField(required=False)
+    blood_group = serializers.CharField(required=False)
 
-    def get_patient_name(self, obj):
-        return f"{obj.patient.first_name} {obj.patient.last_name}"
-    
-class ConsultancySerializer(serializers.ModelSerializer):
-    patient_name = serializers.SerializerMethodField()
-    doctor_name = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Consultancy
-        fields = [
-            'consult_id',
-            'patient',
-            'doctor',
-            'patient_name',
-            'doctor_name',
-            'consultation_type',
-            'consultation_notes',
-            'created_at'
+    def create(self, validated_data):
+        from .models import execute_query
+        query = """
+            INSERT INTO Profile (user_id, profile_picture, address, phone, date_of_birth, gender, blood_group)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        params = [
+            validated_data['user_id'],
+            validated_data.get('profile_picture'),
+            validated_data.get('address'),
+            validated_data.get('phone'),
+            validated_data.get('date_of_birth'),
+            validated_data.get('gender'),
+            validated_data.get('blood_group')
         ]
+        profile_id = execute_query(query, params, fetch=False)
+        return {**validated_data, 'id': profile_id}
 
-    def get_patient_name(self, obj):
-        return f"{obj.patient.first_name} {obj.patient.last_name}" if obj.patient else None
+    def update(self, instance, validated_data):
+        from .models import execute_query
+        query = """
+            UPDATE Profile 
+            SET profile_picture = %s,
+                address = %s,
+                phone = %s,
+                date_of_birth = %s,
+                gender = %s,
+                blood_group = %s
+            WHERE id = %s
+        """
+        params = [
+            validated_data.get('profile_picture', instance.get('profile_picture')),
+            validated_data.get('address', instance.get('address')),
+            validated_data.get('phone', instance.get('phone')),
+            validated_data.get('date_of_birth', instance.get('date_of_birth')),
+            validated_data.get('gender', instance.get('gender')),
+            validated_data.get('blood_group', instance.get('blood_group')),
+            instance['id']
+        ]
+        execute_query(query, params, fetch=False)
+        return {**instance, **validated_data}
 
-    def get_doctor_name(self, obj):
-        return f"Dr. {obj.doctor.first_name} {obj.doctor.last_name}" if obj.doctor else None
+class DoctorSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    user_id = serializers.IntegerField()
+    doctor_id = serializers.CharField()
+    specialization = serializers.CharField()
+    consultation_fee = serializers.DecimalField(max_digits=10, decimal_places=2)
+    qualifications = serializers.CharField()
+    experience_years = serializers.IntegerField()
+    username = serializers.CharField()
+    email = serializers.EmailField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
 
-class EmergencySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Emergency
-        fields = '__all__'
+class AppointmentSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    appointment_id = serializers.CharField(read_only=True)
+    patient_id = serializers.IntegerField(required=True)
+    doctor_id = serializers.IntegerField(required=True)
+    patient_id_display = serializers.CharField(required=False)
+    doctor_id_display = serializers.CharField(required=False)
+    appointment_date = serializers.DateTimeField(required=True)
+    appointment_mode = serializers.CharField(default='IN_PERSON')
+    appointment_fee = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
+    symptoms = serializers.CharField(required=False)
+    notes = serializers.CharField(required=False)
+
+class ConsultancySerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    patient_id = serializers.IntegerField()
+    doctor_id = serializers.IntegerField()
+    symptoms = serializers.CharField(required=False, allow_blank=True)
+    diagnosis = serializers.CharField(required=False, allow_blank=True)
+    prescription = serializers.CharField(required=False, allow_blank=True)
+    follow_up_date = serializers.DateTimeField(required=False)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+class EmergencySerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    patient_id = serializers.IntegerField(required=True)
+    doctor_id = serializers.IntegerField(required=False)
+    request_time = serializers.DateTimeField(read_only=True)
+    ambulance_assign_status = serializers.CharField(default='No')
+    ambulance_assigned = serializers.CharField(required=False)
+    status = serializers.CharField(default='Pending')
+    arrival_time_in_hospital = serializers.DateTimeField(required=False)
+    driver_name = serializers.CharField(required=False)
+    driver_contact_num = serializers.CharField(required=False)
+    legal_issues_reported = serializers.CharField(default='No')
+    legal_case_number = serializers.CharField(required=False)

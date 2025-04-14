@@ -2,39 +2,81 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { Link, useNavigate } from 'react-router-dom';
-import {ACCESS_TOKEN,REFRESH_TOKEN} from '../constants'
-import api from '../api'
+import { ACCESS_TOKEN, REFRESH_TOKEN } from '../constants';
+import api from '../api';
 
 function Login() {
   const [showPassword, setShowPassword] = useState(false);
-  const navigate=useNavigate();
-  
-  const [formData, setFormData] = useState({
-    username: '',
-    password: ''
-  });
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const [loading, setLoading]= useState(false);
-
-  const handleSubmit = async(e) => {
-    setLoading(true);
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    try{
-        const res = await api.post('/api/token/',{username,password});
-      localStorage.setItem(ACCESS_TOKEN, res.data.access);
-      localStorage.setItem(REFRESH_TOKEN,res.data.refresh);
-      navigate('/')
-    }catch(error){
-      alert(error)
-    }finally{
-      setLoading(false)
-    }
-    console.log('Login form submitted:', formData);
-  };
+    setLoading(true);
+    setError("");
 
- 
+    if (!username || !password) {
+      setError("Please enter both username and password");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Get tokens and user data
+      const res = await api.post('/api/token/', { username, password });
+      
+      if (!res.data || !res.data.access) {
+        setError("Invalid response from server");
+        setLoading(false);
+        return;
+      }
+
+      console.log('Login Response:', res.data); // Debug log
+      
+      // Store tokens and user data
+      localStorage.setItem(ACCESS_TOKEN, res.data.access);
+      localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
+      
+      if (res.data.user && res.data.user.user_type) {
+        localStorage.setItem('user_type', res.data.user.user_type);
+        console.log('User Type:', res.data.user.user_type); // Debug log
+        
+        // Navigate based on user type
+        if (res.data.user.user_type === 'DOCTOR') {
+          navigate('/');
+        } else if (res.data.user.user_type === 'PATIENT') {
+          navigate('/');
+        } else {
+          console.log('Unknown user type:', res.data.user.user_type); // Debug log
+          navigate('/');
+        }
+      } else {
+        console.log('No user type found in response'); // Debug log
+        navigate('/');
+      }
+      
+    } catch (error) {
+      console.error('Login Error:', error); // Debug log
+      if (error.response) {
+        if (error.response.status === 401) {
+          setError("Invalid username or password");
+        } else {
+          setError(error.response.data.detail || "An error occurred during login");
+        }
+      } else {
+        setError("Network error. Please try again.");
+      }
+      // Clear any tokens if login fails
+      localStorage.removeItem(ACCESS_TOKEN);
+      localStorage.removeItem(REFRESH_TOKEN);
+      localStorage.removeItem('user_type');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-green-50 flex items-center justify-center p-4">
@@ -60,7 +102,13 @@ function Login() {
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="p-8">
-          {/* Email Input */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          {/* Username Input */}
           <div className="mb-6">
             <label className="block text-gray-700 text-sm font-medium mb-2">
               Username
@@ -77,6 +125,7 @@ function Login() {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#77B254] focus:border-transparent"
                 placeholder="Enter your username"
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -98,11 +147,13 @@ function Login() {
                 className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#77B254] focus:border-transparent"
                 placeholder="Enter your password"
                 required
+                disabled={loading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                disabled={loading}
               >
                 {showPassword ? (
                   <FaEyeSlash className="text-gray-400 hover:text-gray-600" />
@@ -113,34 +164,16 @@ function Login() {
             </div>
           </div>
 
-          {/* Remember Me & Forgot Password */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                className="h-4 w-4 text-[#77B254] focus:ring-[#77B254] border-gray-300 rounded"
-              />
-              <label className="ml-2 block text-sm text-gray-700">
-                Remember me
-              </label>
-            </div>
-            <Link
-              to="/forgot-password"
-              className="text-sm text-[#77B254] hover:text-green-600"
-            >
-              Forgot password?
-            </Link>
-          </div>
-          
-
           {/* Login Button */}
           <button
             type="submit"
             className="w-full bg-gradient-to-r from-[#77B254] to-green-600 text-white py-3 px-4 rounded-xl font-medium
                      hover:from-green-600 hover:to-[#77B254] transition-all duration-300
-                     focus:outline-none focus:ring-2 focus:ring-[#77B254] focus:ring-offset-2"
+                     focus:outline-none focus:ring-2 focus:ring-[#77B254] focus:ring-offset-2
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
           >
-            Sign In
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
 
           {/* Sign Up Link */}

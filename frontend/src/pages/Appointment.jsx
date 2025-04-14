@@ -6,14 +6,14 @@ import api from '../api';
 import Navheader from '../Components/Navheader';
 import Footer from '../Components/Footer'
 const specializations = [
-  { name: "Cardiologist", icon: "❤️", description: "Heart and cardiovascular specialists" },
-  { name: "Dermatologist", icon: "🔬", description: "Skin care experts" },
-  { name: "Orthopedic", icon: "🦴", description: "Bone and joint specialists" },
-  { name: "Pediatrician", icon: "👶", description: "Child healthcare experts" },
-  { name: "Neurologist", icon: "🧠", description: "Brain and nervous system specialists" },
-  { name: "Psychiatrist", icon: "🧘‍♂️", description: "Mental health professionals" },
-  { name: "Gynecologist", icon: "👩", description: "Women's health specialists" },
-  { name: "Ophthalmologist", icon: "👁️", description: "Eye care specialists" }
+  { name: "CARDIOLOGIST", displayName: "Cardiologist", icon: "❤️", description: "Heart and cardiovascular specialists" },
+  { name: "DERMATOLOGIST", displayName: "Dermatologist", icon: "🔬", description: "Skin care experts" },
+  { name: "ORTHOPEDIC", displayName: "Orthopedic", icon: "🦴", description: "Bone and joint specialists" },
+  { name: "PEDIATRICIAN", displayName: "Pediatrician", icon: "👶", description: "Child healthcare experts" },
+  { name: "NEUROLOGIST", displayName: "Neurologist", icon: "🧠", description: "Brain and nervous system specialists" },
+  { name: "PSYCHIATRIST", displayName: "Psychiatrist", icon: "🧘‍♂️", description: "Mental health professionals" },
+  { name: "GYNECOLOGIST", displayName: "Gynecologist", icon: "👩", description: "Women's health specialists" },
+  { name: "OPHTHALMOLOGIST", displayName: "Ophthalmologist", icon: "👁️", description: "Eye care specialists" }
 ];
 
 function Appointment() {
@@ -32,28 +32,28 @@ function Appointment() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [filteredDoctors, setFilteredDoctors] = useState([]);
+  const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
 
-  useEffect(() => {
-    const fetchDoctors = async () => {
-      try {
-        const response = await api.get('/api/doctors/');
-        setDoctors(response.data);
-        setError(null);
-      } catch (error) {
-        console.error('Error fetching doctors:', error);
-        setError('Failed to load doctors. Please try again.');
-        if (error.response?.status === 401) {
-          window.location.href = '/login';
-        }
+  const handleSpecializationSelect = async (specialization) => {
+    setSelectedSpecialization(specialization);
+    setStep(2);
+    setIsLoadingDoctors(true);
+    try {
+      const response = await api.get(`/api/doctors/?specialization=${specialization}`);
+      setDoctors(response.data);
+      setFilteredDoctors(response.data);
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+      setError('Failed to load doctors. Please try again.');
+      if (error.response?.status === 401) {
+        window.location.href = '/login';
       }
-    };
-
-    fetchDoctors();
-  }, []);
-
-  const filteredDoctors = selectedSpecialization
-    ? doctors.filter(doc => doc.specialization === selectedSpecialization)
-    : doctors;
+    } finally {
+      setIsLoadingDoctors(false);
+    }
+  };
 
   const handleDoctorSelect = (doctor) => {
     setSelectedDoctor(doctor);
@@ -92,7 +92,7 @@ function Appointment() {
       const formattedDate = new Date(appointmentData.appointment_date).toISOString();
 
       const dataToSend = {
-        doctor: selectedDoctor.id,
+        doctor_id: selectedDoctor.id,
         appointment_date: formattedDate,
         appointment_mode: appointmentData.appointment_mode,
         symptoms: appointmentData.symptoms || '',
@@ -108,7 +108,8 @@ function Appointment() {
       window.location.href = '/';
     } catch (err) {
       console.error('Error creating appointment:', err.response?.data);
-      setError(err.response?.data?.detail || 
+      setError(err.response?.data?.error || 
+              err.response?.data?.detail || 
               Object.values(err.response?.data || {})[0]?.[0] || 
               'Failed to book appointment. Please try again.');
     } finally {
@@ -181,16 +182,13 @@ function Appointment() {
                   key={spec.name}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setSelectedSpecialization(spec.name);
-                    setStep(2);
-                  }}
+                  onClick={() => handleSpecializationSelect(spec.name)}
                   className={`p-6 bg-white rounded-xl shadow-lg cursor-pointer transform transition-all
                     hover:shadow-xl ${selectedSpecialization === spec.name ? 'ring-2 ring-[#77B254]' : ''}
                     bg-gradient-to-br from-white to-gray-50`}
                 >
                   <div className="text-4xl mb-4">{spec.icon}</div>
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2">{spec.name}</h3>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">{spec.displayName}</h3>
                   <p className="text-gray-500 text-sm">{spec.description}</p>
                 </motion.div>
               ))}
@@ -205,75 +203,91 @@ function Appointment() {
             animate={{ opacity: 1 }}
             className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDoctors.map((doctor) => (
-                <motion.div
-                  key={doctor.id}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleDoctorSelect(doctor)}
-                  className={`bg-white rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer
-                    ${selectedDoctor?.id === doctor.id ? 'ring-2 ring-[#77B254]' : ''}`}
-                >
-                  <div className="p-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="relative flex-shrink-0">
-                        <img
-                          src={doctor.image || `https://ui-avatars.com/api/?name=${doctor.first_name}+${doctor.last_name}&background=77B254&color=fff`}
-                          alt={doctor.first_name}
-                          className="w-20 h-20 rounded-full object-cover border-2 border-gray-100"
-                        />
-                        <div className="absolute -bottom-1 -right-1 bg-[#77B254] text-white px-2 py-0.5 rounded-full text-xs">
-                          {doctor.experience_years}y
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-gray-800 truncate">
-                          Dr. {doctor.first_name} {doctor.last_name}
-                        </h3>
-                        <div className="flex items-center text-sm text-gray-600 mt-1">
-                          <FaUserMd className="w-4 h-4 mr-1 text-[#77B254]" />
-                          <span className="truncate">{doctor.specialization}</span>
-                        </div>
-                        <div className="text-sm text-gray-500 mt-1 truncate">
-                          {doctor.qualification}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <FaMoneyBill className="text-[#77B254] w-4 h-4" />
-                        <span className="text-[#77B254] font-semibold">
-                          ₹{doctor.consultation_fee}
-                        </span>
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500 space-x-2">
-                        <FaClock className="w-4 h-4" />
-                        <span>Available Today</span>
-                      </div>
-                    </div>
-
-                    <button 
-                      className="mt-4 w-full bg-[#77B254] text-white hover:bg-green-600 
-                        px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 
-                        flex items-center justify-center space-x-2"
-                    >
-                      <FaCalendar className="w-4 h-4" />
-                      <span>Book Appointment</span>
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+            <div className="mb-6 flex justify-between items-center">
+              <h2 className="text-2xl font-semibold text-gray-800">
+                {specializations.find(s => s.name === selectedSpecialization)?.displayName || selectedSpecialization} Specialists
+              </h2>
+              <button
+                onClick={() => setStep(1)}
+                className="text-[#77B254] hover:text-green-600 font-medium flex items-center gap-2"
+              >
+                <span>Change Specialization</span>
+              </button>
             </div>
 
-            {filteredDoctors.length === 0 && (
+            {isLoadingDoctors ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#77B254]"></div>
+              </div>
+            ) : filteredDoctors.length === 0 ? (
               <div className="text-center py-12">
                 <FaUserMd className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-lg font-medium text-gray-900">No doctors found</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  No doctors available for the selected specialization.
+                  No doctors available for {specializations.find(s => s.name === selectedSpecialization)?.displayName || selectedSpecialization} at the moment.
                 </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredDoctors.map((doctor) => (
+                  <motion.div
+                    key={doctor.id}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleDoctorSelect(doctor)}
+                    className={`bg-white rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer
+                      ${selectedDoctor?.id === doctor.id ? 'ring-2 ring-[#77B254]' : ''}`}
+                  >
+                    <div className="p-6">
+                      <div className="flex items-center space-x-4">
+                        <div className="relative flex-shrink-0">
+                          <img
+                            src={doctor.image || `https://ui-avatars.com/api/?name=${doctor.first_name}+${doctor.last_name}&background=77B254&color=fff`}
+                            alt={doctor.first_name}
+                            className="w-20 h-20 rounded-full object-cover border-2 border-gray-100"
+                          />
+                          <div className="absolute -bottom-1 -right-1 bg-[#77B254] text-white px-2 py-0.5 rounded-full text-xs">
+                            {doctor.experience_years}y
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold text-gray-800 truncate">
+                            Dr. {doctor.first_name} {doctor.last_name}
+                          </h3>
+                          <div className="flex items-center text-sm text-gray-600 mt-1">
+                            <FaUserMd className="w-4 h-4 mr-1 text-[#77B254]" />
+                            <span className="truncate">{doctor.specialization}</span>
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1 truncate">
+                            {doctor.qualification}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <FaMoneyBill className="text-[#77B254] w-4 h-4" />
+                          <span className="text-[#77B254] font-semibold">
+                            ₹{doctor.consultation_fee}
+                          </span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-500 space-x-2">
+                          <FaClock className="w-4 h-4" />
+                          <span>Available Today</span>
+                        </div>
+                      </div>
+
+                      <button 
+                        className="mt-4 w-full bg-[#77B254] text-white hover:bg-green-600 
+                          px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 
+                          flex items-center justify-center space-x-2"
+                      >
+                        <FaCalendar className="w-4 h-4" />
+                        <span>Book Appointment</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             )}
           </motion.div>
