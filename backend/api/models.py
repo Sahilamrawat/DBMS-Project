@@ -354,6 +354,7 @@ def initialize_database():
             )
         """, [], fetch=False)
 
+         #create api_feedback table 
         execute_query("""
     CREATE TABLE IF NOT EXISTS api_feedback (
         feedback_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -370,6 +371,42 @@ def initialize_database():
         CONSTRAINT fk_feedback_lab_test FOREIGN KEY (lab_test_id) REFERENCES api_lab_test(lab_test_id) ON DELETE SET NULL
     )
 """, [], fetch=False)
+        
+
+        #created api_pharmacy table        
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS api_pharmacy (
+                pharmacy_id INT AUTO_INCREMENT PRIMARY KEY,
+                pharmacy_store_name VARCHAR(100) NOT NULL,
+                pharmacy_location VARCHAR(255) NOT NULL,
+                pharmacy_contact VARCHAR(20) NOT NULL,
+                pharmacy_email VARCHAR(100),
+                pharmacy_manager VARCHAR(100),
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        """, [], fetch=False)
+
+        #created api_medicine table
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS api_medicine (
+                medicine_id INT AUTO_INCREMENT PRIMARY KEY,
+                medicine_name VARCHAR(100) NOT NULL,
+                price DECIMAL(10,2) NOT NULL CHECK (price > 0),
+                manufactured_date DATE NOT NULL,
+                exp_date DATE NOT NULL,
+                batch_number VARCHAR(50),
+                description TEXT,
+                usage_instructions TEXT,
+                stock_quantity INT DEFAULT 0,
+                is_available BOOLEAN DEFAULT TRUE,
+                CONSTRAINT chk_exp_date CHECK (exp_date > manufactured_date),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        """, [], fetch=False)
+                
 
 
         print("Database initialized successfully!")
@@ -384,6 +421,9 @@ def initialize_database():
         print("- Note table")
         print("_ Lab Test ")
         print("_ api_medicalhistory")
+        print("_ api_feedback")
+        print("_ api_pharmacy")
+        print("_ api_medicine")
         
     except Exception as e:
         print(f"Error initializing database: {str(e)}")

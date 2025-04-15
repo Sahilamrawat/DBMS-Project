@@ -3,6 +3,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
+from .models import execute_query
 
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'username'
@@ -510,6 +511,136 @@ class FeedbackSerializer(serializers.Serializer):
             validated_data.get('comments', instance.get('comments')),
             validated_data.get('is_active', instance.get('is_active', True)),
             instance['feedback_id']
+        ]
+        execute_query(query, params, fetch=False)
+        return {**instance, **validated_data}
+    
+
+
+class MedicineSerializer(serializers.Serializer):
+    medicine_id = serializers.IntegerField(read_only=True)
+    medicine_name = serializers.CharField(required=True)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    manufactured_date = serializers.DateField()
+    exp_date = serializers.DateField()
+    batch_number = serializers.CharField(required=False, allow_blank=True)
+    description = serializers.CharField(required=False, allow_blank=True)
+    usage_instructions = serializers.CharField(required=False, allow_blank=True)
+    stock_quantity = serializers.IntegerField(default=0)
+    is_available = serializers.BooleanField(default=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    def create(self, validated_data):
+        query = """
+            INSERT INTO api_medicine 
+            (medicine_name, price, manufactured_date, exp_date, batch_number, description, usage_instructions, stock_quantity, is_available)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        params = [
+            validated_data['medicine_name'],
+            validated_data['price'],
+            validated_data['manufactured_date'],
+            validated_data['exp_date'],
+            validated_data.get('batch_number'),
+            validated_data.get('description'),
+            validated_data.get('usage_instructions'),
+            validated_data.get('stock_quantity', 0),
+            validated_data.get('is_available', True),
+        ]
+        execute_query(query, params, fetch=False)
+        return validated_data
+
+    def update(self, instance, validated_data):
+        query = """
+            UPDATE api_medicine
+            SET medicine_name = %s,
+                price = %s,
+                manufactured_date = %s,
+                exp_date = %s,
+                batch_number = %s,
+                description = %s,
+                usage_instructions = %s,
+                stock_quantity = %s,
+                is_available = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE medicine_id = %s
+        """
+        params = [
+            validated_data.get('medicine_name', instance['medicine_name']),
+            validated_data.get('price', instance['price']),
+            validated_data.get('manufactured_date', instance['manufactured_date']),
+            validated_data.get('exp_date', instance['exp_date']),
+            validated_data.get('batch_number', instance.get('batch_number')),
+            validated_data.get('description', instance.get('description')),
+            validated_data.get('usage_instructions', instance.get('usage_instructions')),
+            validated_data.get('stock_quantity', instance.get('stock_quantity')),
+            validated_data.get('is_available', instance.get('is_available')),
+            instance['medicine_id']
+        ]
+        execute_query(query, params, fetch=False)
+        return {**instance, **validated_data}
+
+
+class PharmacySerializer(serializers.Serializer):
+    pharmacy_id = serializers.IntegerField(read_only=True)
+    pharmacy_store_name = serializers.CharField(required=True)
+    pharmacy_location = serializers.CharField(required=True)
+    pharmacy_contact = serializers.CharField(required=True)
+    pharmacy_email = serializers.EmailField(required=False, allow_null=True)
+    pharmacy_manager = serializers.CharField(required=False, allow_blank=True)
+    is_active = serializers.BooleanField(default=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    def create(self, validated_data):
+        from .models import execute_query, fetch_one
+
+        # Check if a pharmacy already exists
+        existing = fetch_one("SELECT pharmacy_id FROM api_pharmacy LIMIT 1", [])
+
+        if existing:
+            raise serializers.ValidationError("A pharmacy already exists. You can only update it.")
+
+        query = """
+            INSERT INTO api_pharmacy 
+            (pharmacy_store_name, pharmacy_location, pharmacy_contact, pharmacy_email, pharmacy_manager, is_active)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        params = [
+            validated_data['pharmacy_store_name'],
+            validated_data['pharmacy_location'],
+            validated_data['pharmacy_contact'],
+            validated_data.get('pharmacy_email'),
+            validated_data.get('pharmacy_manager'),
+            validated_data.get('is_active', True)
+        ]
+        execute_query(query, params, fetch=False)
+
+        return validated_data
+
+    def update(self, instance, validated_data):
+        from .models import execute_query
+
+        query = """
+            UPDATE api_pharmacy
+            SET pharmacy_store_name = %s,
+                pharmacy_location = %s,
+                pharmacy_contact = %s,
+                pharmacy_email = %s,
+                pharmacy_manager = %s,
+                is_active = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE pharmacy_id = %s
+        """
+        params = [
+            validated_data.get('pharmacy_store_name', instance['pharmacy_store_name']),
+            validated_data.get('pharmacy_location', instance['pharmacy_location']),
+            validated_data.get('pharmacy_contact', instance['pharmacy_contact']),
+            validated_data.get('pharmacy_email', instance.get('pharmacy_email')),
+            validated_data.get('pharmacy_manager', instance.get('pharmacy_manager')),
+            validated_data.get('is_active', instance.get('is_active', True)),
+            instance['pharmacy_id']
         ]
         execute_query(query, params, fetch=False)
         return {**instance, **validated_data}

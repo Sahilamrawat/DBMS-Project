@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from api.views import CreateUserView, CustomTokenObtainPairView,ProfileDetailView, DoctorListView, AppointmentListView, AppointmentCreateView ,  ConsultancyViewSet , EmergencyViewSet ,AssignLabTestView, DoctorLabTestListView, PatientLabTestListView,PatientLabTestRequestView,EmergencyPatientListView , MedicalHistoryView, AllMedicalHistoryView,ChronicDiseasePatientsView,SurgeryHistoryPatientsView,DoctorMedicalHistoryView,FeedbackView, FeedbackDetailView
+from api.views import CreateUserView, CustomTokenObtainPairView,ProfileDetailView, DoctorListView, AppointmentListView, AppointmentCreateView ,  ConsultancyViewSet , EmergencyViewSet ,AssignLabTestView, DoctorLabTestListView, PatientLabTestListView,PatientLabTestRequestView,EmergencyPatientListView , MedicalHistoryView, AllMedicalHistoryView,ChronicDiseasePatientsView,SurgeryHistoryPatientsView,DoctorMedicalHistoryView,FeedbackView, FeedbackDetailView , MedicineView, PharmacyView, MedicineStockView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -70,6 +70,13 @@ urlpatterns = [
     path('feedback-detail/', FeedbackDetailView.as_view(), name='feedback-detail-view'),
 
 
+    #medicine routes 
+    path('medicine/', MedicineView.as_view(), name='medicine'),
+    path('medicine/<int:pk>/', MedicineView.as_view(), name='medicine-detail'),
+    path('pharmacy/', PharmacyView.as_view(), name='pharmacy'),
+    
+    # New endpoint for stock info and expiring soon 
+    path('medicine/stock-info/', MedicineStockView.as_view(), name='medicine-stock-info'),
 
 
 ]

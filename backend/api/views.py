@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.contrib.auth.models import User
 from rest_framework import generics
 from rest_framework import viewsets
-from .serializers import UserRegistrationSerializer, NoteSerializer, DoctorSerializer, AppointmentSerializer, EmergencySerializer,LabTestSerializer , MedicalHistorySerializer,FeedbackSerializer
+from .serializers import UserRegistrationSerializer, NoteSerializer, DoctorSerializer, AppointmentSerializer, EmergencySerializer,LabTestSerializer , MedicalHistorySerializer,FeedbackSerializer, MedicineSerializer, PharmacySerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -1995,3 +1995,153 @@ class FeedbackDetailView(APIView):
             return Response(result, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class MedicineView(APIView): 
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            base_query = """
+                SELECT 
+                    medicine_id,
+                    medicine_name,
+                    price,
+                    manufactured_date,
+                    exp_date,
+                    batch_number,
+                    description,
+                    usage_instructions,
+                    stock_quantity,
+                    is_available,
+                    created_at,
+                    updated_at
+                FROM api_medicine
+            """
+            conditions = []
+            params = []
+
+            if request.GET.get("expiring_soon") == "true":
+                conditions.append("exp_date < %s")
+                params.append((datetime.now() + timedelta(days=60)).date())
+
+            if conditions:
+                base_query += " WHERE " + " AND ".join(conditions)
+
+            if request.GET.get("order_by_expiry") == "true":
+                base_query += " ORDER BY exp_date ASC"
+
+            result = fetch_all(base_query, params)
+            serializer = MedicineSerializer(result, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request):
+        serializer = MedicineSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.create(serializer.validated_data)
+                return Response({"message": "Medicine added successfully."}, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, pk):
+        try:
+            existing = fetch_one("SELECT * FROM api_medicine WHERE medicine_id = %s", [pk])
+            if not existing:
+                return Response({"message": "Medicine not found."}, status=status.HTTP_404_NOT_FOUND)
+            serializer = MedicineSerializer(existing, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.update(existing, serializer.validated_data)
+                return Response({"message": "Medicine updated."}, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, pk):
+        try:
+            execute_query("DELETE FROM api_medicine WHERE medicine_id = %s", [pk], fetch=False)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PharmacyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            pharmacy = fetch_one("SELECT * FROM api_pharmacy LIMIT 1", [])
+            if not pharmacy:
+                return Response({"message": "No pharmacy found."}, status=status.HTTP_404_NOT_FOUND)
+            serializer = PharmacySerializer(pharmacy)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request):
+        serializer = PharmacySerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.create(serializer.validated_data)
+                return Response({"message": "Pharmacy created."}, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        try:
+            existing = fetch_one("SELECT * FROM api_pharmacy LIMIT 1", [])
+            if not existing:
+                return Response({"message": "Pharmacy not found."}, status=status.HTTP_404_NOT_FOUND)
+            serializer = PharmacySerializer(existing, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.update(existing, serializer.validated_data)
+                return Response({"message": "Pharmacy updated successfully."}, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class MedicineStockView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            view_type = request.GET.get("type")
+
+            if view_type == "stock":
+                # Fetch stock info with pharmacy name
+                query = """
+                    SELECT 
+                        m.medicine_name,
+                        p.pharmacy_store_name,
+                        m.price,
+                        m.exp_date
+                    FROM api_medicine m
+                    JOIN api_pharmacy p ON 1 = 1
+                    ORDER BY m.exp_date ASC
+                """
+                result = execute_query(query, [])
+
+            elif view_type == "expiring_soon":
+                # Fetch medicines expiring in next 60 days
+                query = """
+                    SELECT 
+                        medicine_name, 
+                        exp_date
+                    FROM api_medicine
+                    WHERE exp_date < %s
+                    ORDER BY exp_date ASC
+                """
+                expiry_limit = (datetime.now() + timedelta(days=60)).date()
+                result = execute_query(query, [expiry_limit])
+            else:
+                return Response({"error": "Invalid or missing query parameter ?type=stock or ?type=expiring_soon"}, status=400)
+
+            return Response(result, status=200)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
