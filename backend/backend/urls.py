@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from api.views import CreateUserView, CustomTokenObtainPairView,ProfileDetailView, DoctorListView, AppointmentListView, AppointmentCreateView ,  ConsultancyViewSet , EmergencyViewSet
+from api.views import CreateUserView, CustomTokenObtainPairView,ProfileDetailView, DoctorListView, AppointmentListView, AppointmentCreateView ,  ConsultancyViewSet , EmergencyViewSet ,AssignLabTestView, DoctorLabTestListView, PatientLabTestListView,PatientLabTestRequestView,EmergencyPatientListView , MedicalHistoryView, AllMedicalHistoryView,ChronicDiseasePatientsView,SurgeryHistoryPatientsView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -45,4 +45,20 @@ urlpatterns = [
     # ✅ Emergency paths
     path('api/emergencies/', emergency_list, name='emergency-list'),
     path('api/emergencies/<int:pk>/', emergency_detail, name='emergency-detail'),
+
+     #labtest paths 
+    # Doctor routes
+    path('doctor/assign-labtest/', AssignLabTestView.as_view(), name='assign_labtest'),
+    path('doctor/labtests/', DoctorLabTestListView.as_view(), name='doctor_labtests'),
+    path('doctor/labtests/<int:labtest_id>/', DoctorLabTestListView.as_view(), name='update_labtest'),
+
+    # Patient routes
+    path('patient/labtests/', PatientLabTestListView.as_view(), name='patient_labtests'),
+    path('patient/request-labtest/', PatientLabTestRequestView.as_view(), name='request_labtest'),
+
+    #medical history 
+    path('medical-history/', MedicalHistoryView.as_view(), name='medical_history'),
+    path('medical-history/all/', AllMedicalHistoryView.as_view(), name='all_medical_history'),
+    path('medical-history/chronic/', ChronicDiseasePatientsView.as_view(), name='chronic_disease_patients'),
+    path('medical-history/surgeries/', SurgeryHistoryPatientsView.as_view(), name='surgery_history_patients'),
 ]

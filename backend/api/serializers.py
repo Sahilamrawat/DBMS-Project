@@ -270,3 +270,114 @@ class EmergencySerializer(serializers.Serializer):
         """
         execute_query(query, params, fetch=False)
         return {**instance, **validated_data}
+    
+
+class LabTestSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    test_name = serializers.CharField(required=True)
+    lab_id = serializers.IntegerField(required=False)  
+    patient_id = serializers.IntegerField(required=True)
+    doctor_id = serializers.IntegerField(required=False)
+    test_date = serializers.DateTimeField(required=True)
+    result = serializers.CharField(required=False, allow_blank=True)
+    status = serializers.CharField(default='Pending')  # e.g., 'Pending', 'Completed'
+    cost = serializers.DecimalField(max_digits=10, decimal_places=2)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    def create(self, validated_data):
+        from .models import execute_query
+        query = """
+            INSERT INTO LabTest (test_name, patient_id, doctor_id, test_date, result, status, cost)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        params = [
+            validated_data['test_name'],
+            validated_data['patient_id'],
+            validated_data.get('doctor_id'),
+            validated_data['test_date'],
+            validated_data.get('result'),
+            validated_data.get('status', 'Pending'),
+            validated_data['cost']
+        ]
+        lab_test_id = execute_query(query, params, fetch=False)
+        return {**validated_data, 'id': lab_test_id}
+
+    def update(self, instance, validated_data):
+        from .models import execute_query
+        query = """
+            UPDATE LabTest
+            SET test_name = %s,
+                patient_id = %s,
+                doctor_id = %s,
+                test_date = %s,
+                result = %s,
+                status = %s,
+                cost = %s
+            WHERE id = %s
+        """
+        params = [
+            validated_data.get('test_name', instance.get('test_name')),
+            validated_data.get('patient_id', instance.get('patient_id')),
+            validated_data.get('doctor_id', instance.get('doctor_id')),
+            validated_data.get('test_date', instance.get('test_date')),
+            validated_data.get('result', instance.get('result')),
+            validated_data.get('status', instance.get('status')),
+            validated_data.get('cost', instance.get('cost')),
+            instance['id']
+        ]
+        execute_query(query, params, fetch=False)
+        return {**instance, **validated_data}
+
+
+class MedicalHistorySerializer(serializers.Serializer):
+    history_id = serializers.IntegerField(read_only=True)
+    patient_id = serializers.IntegerField(read_only=True)
+    diagnosis = serializers.CharField(required=True)
+    treatment = serializers.CharField(required=True)
+    allergies = serializers.CharField(allow_blank=True, required=False)
+    past_surgeries = serializers.CharField(allow_blank=True, required=False)
+    previous_medications = serializers.CharField(allow_blank=True, required=False)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    def create(self, validated_data):
+        from .models import execute_query
+        query = """
+            INSERT INTO api_medicalhistory 
+            (patient_id, diagnosis, treatment, allergies, past_surgeries, previous_medications)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        params = [
+            validated_data['patient_id'],
+            validated_data['diagnosis'],
+            validated_data['treatment'],
+            validated_data.get('allergies'),
+            validated_data.get('past_surgeries'),
+            validated_data.get('previous_medications')
+        ]
+        execute_query(query, params, fetch=False)
+        return validated_data
+
+    def update(self, instance, validated_data):
+        from .models import execute_query
+        query = """
+            UPDATE api_medicalhistory
+            SET diagnosis = %s,
+                treatment = %s,
+                allergies = %s,
+                past_surgeries = %s,
+                previous_medications = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE patient_id = %s
+        """
+        params = [
+            validated_data.get('diagnosis', instance['diagnosis']),
+            validated_data.get('treatment', instance['treatment']),
+            validated_data.get('allergies', instance.get('allergies')),
+            validated_data.get('past_surgeries', instance.get('past_surgeries')),
+            validated_data.get('previous_medications', instance.get('previous_medications')),
+            instance['patient_id']
+        ]
+        execute_query(query, params, fetch=False)
+        return {**instance, **validated_data}

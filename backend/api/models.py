@@ -317,6 +317,45 @@ def initialize_database():
             )
         """, [], fetch=False)
 
+        
+                # Create LabTest table
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS api_labtest (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                patient_id INT NOT NULL,
+                doctor_id INT,
+                test_type VARCHAR(100) NOT NULL,
+                test_name VARCHAR(100),
+                test_description TEXT,
+                test_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                result_status VARCHAR(20) DEFAULT 'PENDING',
+                result_file VARCHAR(255),
+                lab_technician_name VARCHAR(100),
+                lab_technician_contact VARCHAR(20),
+                remarks TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (patient_id) REFERENCES api_patient(id) ON DELETE CASCADE,
+                FOREIGN KEY (doctor_id) REFERENCES api_doctor(id) ON DELETE SET NULL
+            )
+        """, [], fetch=False)
+
+        # Create api_medicalhistory table
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS api_medicalhistory (
+                history_id INT AUTO_INCREMENT PRIMARY KEY,
+                patient_id INT UNIQUE, -- One-to-one relation with api_profile
+                diagnosis VARCHAR(255) NOT NULL,
+                treatment VARCHAR(255) NOT NULL,
+                allergies VARCHAR(255),
+                past_surgeries VARCHAR(255),
+                previous_medications VARCHAR(255),
+                FOREIGN KEY (patient_id) REFERENCES api_profile(id) ON DELETE CASCADE
+            )
+        """, [], fetch=False)
+
+
+
         print("Database initialized successfully!")
         print("Created tables:")
         print("- User table")
@@ -327,7 +366,11 @@ def initialize_database():
         print("- Consultancy table")
         print("- Emergency table")
         print("- Note table")
+        print("_ Lab Test ")
+        print("_ api_medicalhistory")
         
     except Exception as e:
         print(f"Error initializing database: {str(e)}")
         raise
+
+  

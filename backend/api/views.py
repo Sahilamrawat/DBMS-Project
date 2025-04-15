@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.contrib.auth.models import User
 from rest_framework import generics
 from rest_framework import viewsets
-from .serializers import UserRegistrationSerializer, NoteSerializer, DoctorSerializer, AppointmentSerializer, EmergencySerializer
+from .serializers import UserRegistrationSerializer, NoteSerializer, DoctorSerializer, AppointmentSerializer, EmergencySerializer,LabTestSerializer , MedicalHistorySerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -1258,4 +1258,299 @@ class AppointmentUpdateView(APIView):
             # Rollback transaction on error
             execute_query("ROLLBACK", [], fetch=False)
             return Response({"error": str(e)}, status=400)
+        
+
+
+# Doctor assigns a lab test
+class AssignLabTestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            data = request.data
+            query = """
+                INSERT INTO LabTest (patient_id, doctor_id, test_name, test_description, assigned_date, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """
+            params = [
+                data['patient_id'],
+                request.user.id,
+                data['test_name'],
+                data.get('test_description', ''),
+                timezone.now(),
+                'Pending'
+            ]
+            execute_query(query, params, fetch=False)
+            return Response({"message": "Lab test assigned successfully."}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+# Doctor views and updates lab tests they assigned
+class DoctorLabTestListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            query = "SELECT * FROM LabTest WHERE doctor_id = %s"
+            params = [request.user.id]
+
+            status_filter = request.query_params.get('status')
+            patient_id_filter = request.query_params.get('patient_id')
+            assigned_date_filter = request.query_params.get('assigned_date')
+
+            if status_filter:
+                query += " AND status = %s"
+                params.append(status_filter)
+
+            if patient_id_filter:
+                query += " AND patient_id = %s"
+                params.append(patient_id_filter)
+
+            if assigned_date_filter:
+                query += " AND DATE(assigned_date) = %s"
+                params.append(assigned_date_filter)
+
+            query += " ORDER BY assigned_date DESC"
+            tests = execute_query(query, params)
+            return Response(tests, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    def put(self, request, labtest_id):
+        try:
+            data = request.data
+            query = """
+                UPDATE LabTest
+                SET status = %s, result_date = %s, report = %s
+                WHERE id = %s AND doctor_id = %s
+            """
+            params = [
+                data.get('status', 'Pending'),
+                data.get('result_date', timezone.now()),
+                data.get('report', ''),
+                labtest_id,
+                request.user.id
+            ]
+            execute_query(query, params, fetch=False)
+            return Response({"message": "Lab test updated successfully."})
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+
+# Patient views their lab test results
+class PatientLabTestListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            query = "SELECT * FROM LabTest WHERE patient_id = %s"
+            params = [request.user.id]
+
+            status_filter = request.query_params.get('status')
+            assigned_date_filter = request.query_params.get('assigned_date')
+
+            if status_filter:
+                query += " AND status = %s"
+                params.append(status_filter)
+
+            if assigned_date_filter:
+                query += " AND DATE(assigned_date) = %s"
+                params.append(assigned_date_filter)
+
+            query += " ORDER BY assigned_date DESC"
+            tests = execute_query(query, params)
+            return Response(tests, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+        
+
+class PatientLabTestRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = request.data.copy()
+        data['patient_id'] = request.user.id  # Ensure the logged-in user is used
+
+        serializer = LabTestSerializer(data=data)
+        if serializer.is_valid():
+            try:
+                lab_test = serializer.create(serializer.validated_data)
+                return Response({
+                    "message": "Lab test requested successfully.",
+                    "lab_test": lab_test
+                }, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+class PatientLabTestRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = request.data.copy()
+        data['patient_id'] = request.user.id
+
+        serializer = LabTestSerializer(data=data)
+        if serializer.is_valid():
+            try:
+                lab_test = serializer.create(serializer.validated_data)
+                return Response({
+                    "message": "Lab test requested successfully.",
+                    "lab_test": lab_test
+                }, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class EmergencyPatientListView(APIView):
+    permission_classes = [IsAuthenticated]  # Optional, if you want only authenticated access
+
+    def get(self, request):
+        try:
+            query = """
+                SELECT 
+                    e.id AS emergency_id,
+                    p.first_name,
+                    p.last_name,
+                    e.request_time,
+                    e.ambulance_assign_status,
+                    e.status,
+                    e.arrival_time_in_hospital
+                FROM api_emergency e
+                JOIN api_patient p ON e.patient_id = p.id
+                ORDER BY e.request_time DESC;
+            """
+            results = execute_query(query, [])
+            
+            # Convert to desired JSON format (PatientName instead of separate first/last)
+            data = []
+            for row in results:
+                data.append({
+                    "emergency_id": row['emergency_id'],
+                    "PatientName": f"{row['first_name']} {row['last_name']}",
+                    "request_time": row['request_time'],
+                    "ambulance_assign_status": row['ambulance_assign_status'],
+                    "status": row['status'],
+                    "arrival_time_in_hospital": row['arrival_time_in_hospital']
+                })
+
+            return Response(data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+class MedicalHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            query = "SELECT * FROM api_medicalhistory WHERE patient_id = %s"
+            params = [request.user.id]
+            result = execute_query(query, params, fetch=True)
+            if not result:
+                return Response({"message": "No medical history found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(result[0], status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    def post(self, request):
+        data = request.data.copy()
+        data['patient_id'] = request.user.id
+
+        serializer = MedicalHistorySerializer(data=data)
+        if serializer.is_valid():
+            try:
+                serializer.create(serializer.validated_data)
+                return Response({"message": "Medical history saved successfully."}, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        try:
+            # First fetch existing record
+            fetch_query = "SELECT * FROM api_medicalhistory WHERE patient_id = %s"
+            existing = execute_query(fetch_query, [request.user.id])
+            if not existing:
+                return Response({"message": "Medical history not found."}, status=404)
+
+            serializer = MedicalHistorySerializer(data=request.data)
+            if serializer.is_valid():
+                updated = serializer.update(existing[0], serializer.validated_data)
+                return Response({"message": "Medical history updated successfully.", "data": updated}, status=200)
+            return Response(serializer.errors, status=400)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+def run_raw_query(query, params=None):
+    with connection.cursor() as cursor:
+        cursor.execute(query, params or [])
+        columns = [col[0] for col in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+class AllMedicalHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query = """
+            SELECT 
+                p.id AS patient_id,
+                CONCAT(u.first_name, ' ', u.last_name) AS patient_name,
+                mh.diagnosis,
+                mh.treatment,
+                mh.allergies,
+                mh.past_surgeries,
+                mh.previous_medications
+            FROM api_profile p
+            JOIN api_medicalhistory mh ON p.id = mh.patient_id
+            JOIN auth_user u ON p.user_id = u.id
+            ORDER BY p.id
+        """
+        data = run_raw_query(query)
+        return Response(data)
+
+
+class ChronicDiseasePatientsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query = """
+            SELECT 
+                p.id AS patient_id,
+                CONCAT(u.first_name, ' ', u.last_name) AS patient_name,
+                mh.diagnosis
+            FROM api_profile p
+            JOIN api_medicalhistory mh ON p.id = mh.patient_id
+            JOIN auth_user u ON p.user_id = u.id
+            WHERE mh.diagnosis LIKE '%Diabetes%' OR mh.diagnosis LIKE '%Hypertension%'
+            ORDER BY p.id
+        """
+        data = run_raw_query(query)
+        return Response(data)
+
+
+class SurgeryHistoryPatientsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query = """
+            SELECT 
+                p.id AS patient_id,
+                CONCAT(u.first_name, ' ', u.last_name) AS patient_name,
+                mh.past_surgeries
+            FROM api_profile p
+            JOIN api_medicalhistory mh ON p.id = mh.patient_id
+            JOIN auth_user u ON p.user_id = u.id
+            WHERE mh.past_surgeries IS NOT NULL AND mh.past_surgeries <> ''
+            ORDER BY p.id
+        """
+        data = run_raw_query(query)
+        return Response(data)
         
