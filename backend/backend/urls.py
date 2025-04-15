@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from api.views import CreateUserView, CustomTokenObtainPairView,ProfileDetailView, DoctorListView, AppointmentListView, AppointmentCreateView ,  ConsultancyViewSet , EmergencyViewSet ,AssignLabTestView, DoctorLabTestListView, PatientLabTestListView,PatientLabTestRequestView,EmergencyPatientListView , MedicalHistoryView, AllMedicalHistoryView,ChronicDiseasePatientsView,SurgeryHistoryPatientsView
+from api.views import CreateUserView, CustomTokenObtainPairView,ProfileDetailView, DoctorListView, AppointmentListView, AppointmentCreateView ,  ConsultancyViewSet , EmergencyViewSet ,AssignLabTestView, DoctorLabTestListView, PatientLabTestListView,PatientLabTestRequestView,EmergencyPatientListView , MedicalHistoryView, AllMedicalHistoryView,ChronicDiseasePatientsView,SurgeryHistoryPatientsView,DoctorMedicalHistoryView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -48,17 +48,20 @@ urlpatterns = [
 
      #labtest paths 
     # Doctor routes
-    path('doctor/assign-labtest/', AssignLabTestView.as_view(), name='assign_labtest'),
-    path('doctor/labtests/', DoctorLabTestListView.as_view(), name='doctor_labtests'),
-    path('doctor/labtests/<int:labtest_id>/', DoctorLabTestListView.as_view(), name='update_labtest'),
+    path('api/doctor/assign-labtest/', AssignLabTestView.as_view(), name='assign_labtest'),
+    path('api/doctor/labtests/', DoctorLabTestListView.as_view(), name='doctor_labtests'),
+    path('api/doctor/labtests/<int:labtest_id>/', DoctorLabTestListView.as_view(), name='update_labtest'),
 
     # Patient routes
-    path('patient/labtests/', PatientLabTestListView.as_view(), name='patient_labtests'),
-    path('patient/request-labtest/', PatientLabTestRequestView.as_view(), name='request_labtest'),
+    path('api/patient/labtests/', PatientLabTestListView.as_view(), name='patient_labtests'),
+    path('api/patient/request-labtest/', PatientLabTestRequestView.as_view(), name='request_labtest'),
 
     #medical history 
-    path('medical-history/', MedicalHistoryView.as_view(), name='medical_history'),
-    path('medical-history/all/', AllMedicalHistoryView.as_view(), name='all_medical_history'),
-    path('medical-history/chronic/', ChronicDiseasePatientsView.as_view(), name='chronic_disease_patients'),
-    path('medical-history/surgeries/', SurgeryHistoryPatientsView.as_view(), name='surgery_history_patients'),
+    path('api/medical-history/', MedicalHistoryView.as_view(), name='medical_history'),
+    path('api/medical-history/<int:pk>/', MedicalHistoryView.as_view(), name='medical-history-update'),
+    path('api/medical-history/all/', AllMedicalHistoryView.as_view(), name='all_medical_history'),
+    path('api/medical-history/chronic/', ChronicDiseasePatientsView.as_view(), name='chronic_disease_patients'),
+    path('api/medical-history/surgeries/', SurgeryHistoryPatientsView.as_view(), name='surgery_history_patients'),
+    path('api/medical-history/doctor/', DoctorMedicalHistoryView.as_view(), name='doctor_medical_history'),
 ]
+

@@ -13,7 +13,8 @@ const specializations = [
   { name: "NEUROLOGIST", displayName: "Neurologist", icon: "🧠", description: "Brain and nervous system specialists" },
   { name: "PSYCHIATRIST", displayName: "Psychiatrist", icon: "🧘‍♂️", description: "Mental health professionals" },
   { name: "GYNECOLOGIST", displayName: "Gynecologist", icon: "👩", description: "Women's health specialists" },
-  { name: "OPHTHALMOLOGIST", displayName: "Ophthalmologist", icon: "👁️", description: "Eye care specialists" }
+  { name: "OPHTHALMOLOGIST", displayName: "Ophthalmologist", icon: "👁️", description: "Eye care specialists" },
+  { name: "LABORATORY", displayName: "Laboratory", icon: "🧪", description: "Diagnostic and pathology experts" },
 ];
 
 function Appointment() {

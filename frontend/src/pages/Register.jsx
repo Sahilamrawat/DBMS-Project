@@ -480,6 +480,7 @@ function Register() {
                       <option value="PEDIATRICIAN">Pediatrician</option>
                       <option value="PSYCHIATRIST">Psychiatrist</option>
                       <option value="ORTHOPEDIC">Orthopedic Surgeon</option>
+                      <option value="LABORATORY"> Lab Specialist </option>
                       <option value="GYNECOLOGIST">Gynecologist</option>
                       <option value="OPHTHALMOLOGIST">Ophthalmologist</option>
                       <option value="ENT">ENT Specialist</option>

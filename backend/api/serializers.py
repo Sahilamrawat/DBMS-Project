@@ -288,7 +288,7 @@ class LabTestSerializer(serializers.Serializer):
     def create(self, validated_data):
         from .models import execute_query
         query = """
-            INSERT INTO LabTest (test_name, patient_id, doctor_id, test_date, result, status, cost)
+            INSERT INTO api_labtest (test_name, patient_id, doctor_id, test_date, test_description, result_status, test_type)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         params = [
@@ -296,9 +296,9 @@ class LabTestSerializer(serializers.Serializer):
             validated_data['patient_id'],
             validated_data.get('doctor_id'),
             validated_data['test_date'],
-            validated_data.get('result'),
-            validated_data.get('status', 'Pending'),
-            validated_data['cost']
+            validated_data.get('test_description', ''),
+            validated_data.get('status', 'PENDING'),
+            'Regular'  # Default test_type
         ]
         lab_test_id = execute_query(query, params, fetch=False)
         return {**validated_data, 'id': lab_test_id}
@@ -306,14 +306,14 @@ class LabTestSerializer(serializers.Serializer):
     def update(self, instance, validated_data):
         from .models import execute_query
         query = """
-            UPDATE LabTest
+            UPDATE api_labtest
             SET test_name = %s,
                 patient_id = %s,
                 doctor_id = %s,
                 test_date = %s,
-                result = %s,
-                status = %s,
-                cost = %s
+                test_description = %s,
+                result_status = %s,
+                test_type = %s
             WHERE id = %s
         """
         params = [
@@ -321,9 +321,9 @@ class LabTestSerializer(serializers.Serializer):
             validated_data.get('patient_id', instance.get('patient_id')),
             validated_data.get('doctor_id', instance.get('doctor_id')),
             validated_data.get('test_date', instance.get('test_date')),
-            validated_data.get('result', instance.get('result')),
-            validated_data.get('status', instance.get('status')),
-            validated_data.get('cost', instance.get('cost')),
+            validated_data.get('test_description', instance.get('test_description', '')),
+            validated_data.get('status', instance.get('result_status', 'PENDING')),
+            validated_data.get('test_type', instance.get('test_type', 'Regular')),
             instance['id']
         ]
         execute_query(query, params, fetch=False)
@@ -332,52 +332,115 @@ class LabTestSerializer(serializers.Serializer):
 
 class MedicalHistorySerializer(serializers.Serializer):
     history_id = serializers.IntegerField(read_only=True)
-    patient_id = serializers.IntegerField(read_only=True)
+    patient_id = serializers.IntegerField()
     diagnosis = serializers.CharField(required=True)
     treatment = serializers.CharField(required=True)
-    allergies = serializers.CharField(allow_blank=True, required=False)
-    past_surgeries = serializers.CharField(allow_blank=True, required=False)
-    previous_medications = serializers.CharField(allow_blank=True, required=False)
+    allergies = serializers.CharField(allow_blank=True, required=False, default='')
+    past_surgeries = serializers.CharField(allow_blank=True, required=False, default='')
+    previous_medications = serializers.CharField(allow_blank=True, required=False, default='')
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
-
     def create(self, validated_data):
         from .models import execute_query
-        query = """
-            INSERT INTO api_medicalhistory 
-            (patient_id, diagnosis, treatment, allergies, past_surgeries, previous_medications)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        params = [
-            validated_data['patient_id'],
-            validated_data['diagnosis'],
-            validated_data['treatment'],
-            validated_data.get('allergies'),
-            validated_data.get('past_surgeries'),
-            validated_data.get('previous_medications')
-        ]
-        execute_query(query, params, fetch=False)
-        return validated_data
+        
+        # Start transaction
+        execute_query("START TRANSACTION", [], fetch=False)
+        
+        try:
+            # Insert the record
+            insert_query = """
+                INSERT INTO api_medicalhistory 
+                (patient_id, diagnosis, treatment, allergies, past_surgeries, 
+                previous_medications)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """
+            params = [
+                validated_data['patient_id'],
+                validated_data['diagnosis'],
+                validated_data['treatment'],
+                validated_data.get('allergies', ''),
+                validated_data.get('past_surgeries', ''),
+                validated_data.get('previous_medications', '')
+            ]
+            execute_query(insert_query, params, fetch=False)
+            
+            # Get the ID of the newly inserted record
+            id_query = "SELECT LAST_INSERT_ID() as id"
+            result = execute_query(id_query, [])
+            new_id = result[0]['id']
+            
+            # Fetch the complete record
+            fetch_query = """
+                SELECT 
+                    history_id,
+                    patient_id,
+                    diagnosis,
+                    treatment,
+                    COALESCE(allergies, '') as allergies,
+                    COALESCE(past_surgeries, '') as past_surgeries,
+                    COALESCE(previous_medications, '') as previous_medications
+                FROM api_medicalhistory 
+                WHERE history_id = %s
+            """
+            new_record = execute_query(fetch_query, [new_id])
+            
+            # Commit the transaction
+            execute_query("COMMIT", [], fetch=False)
+            
+            return new_record[0]
+            
+        except Exception as e:
+            # Rollback in case of error
+            execute_query("ROLLBACK", [], fetch=False)
+            raise e
 
     def update(self, instance, validated_data):
         from .models import execute_query
-        query = """
-            UPDATE api_medicalhistory
-            SET diagnosis = %s,
-                treatment = %s,
-                allergies = %s,
-                past_surgeries = %s,
-                previous_medications = %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE patient_id = %s
-        """
-        params = [
-            validated_data.get('diagnosis', instance['diagnosis']),
-            validated_data.get('treatment', instance['treatment']),
-            validated_data.get('allergies', instance.get('allergies')),
-            validated_data.get('past_surgeries', instance.get('past_surgeries')),
-            validated_data.get('previous_medications', instance.get('previous_medications')),
-            instance['patient_id']
-        ]
-        execute_query(query, params, fetch=False)
-        return {**instance, **validated_data}
+        
+        # Start transaction
+        execute_query("START TRANSACTION", [], fetch=False)
+        
+        try:
+            update_query = """
+                UPDATE api_medicalhistory
+                SET diagnosis = %s,
+                    treatment = %s,
+                    allergies = %s,
+                    past_surgeries = %s,
+                    previous_medications = %s
+                WHERE history_id = %s
+            """
+            params = [
+                validated_data.get('diagnosis', instance['diagnosis']),
+                validated_data.get('treatment', instance['treatment']),
+                validated_data.get('allergies', instance.get('allergies', '')),
+                validated_data.get('past_surgeries', instance.get('past_surgeries', '')),
+                validated_data.get('previous_medications', instance.get('previous_medications', '')),
+                instance['history_id']
+            ]
+            execute_query(update_query, params, fetch=False)
+            
+            # Fetch the updated record
+            fetch_query = """
+                SELECT 
+                    history_id,
+                    patient_id,
+                    diagnosis,
+                    treatment,
+                    COALESCE(allergies, '') as allergies,
+                    COALESCE(past_surgeries, '') as past_surgeries,
+                    COALESCE(previous_medications, '') as previous_medications
+                FROM api_medicalhistory 
+                WHERE history_id = %s
+            """
+            updated_record = execute_query(fetch_query, [instance['history_id']])
+            
+            # Commit the transaction
+            execute_query("COMMIT", [], fetch=False)
+            
+            return updated_record[0]
+            
+        except Exception as e:
+            # Rollback in case of error
+            execute_query("ROLLBACK", [], fetch=False)
+            raise e

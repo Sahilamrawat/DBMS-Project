@@ -20,6 +20,8 @@ import ManageAppointments from './pages/ManageAppointments'
 import EmergencyDetails from './pages/EmergencyDetails'
 import PatientEmergency from './pages/PatientEmergency'
 import DoctorEmergency from './pages/DoctorEmergency'
+import MedicalHistory from './pages/MedicalHistory'
+import LabTest from './pages/LabTest'
 
 
 function Logout(){
@@ -54,6 +56,9 @@ function App() {
         <Route path='/emergency/:id' element={<EmergencyDetails/>} />
         <Route path='/patient/emergencies' element={<PatientEmergency/>} />
         <Route path='/doctor/emergencies' element={<DoctorEmergency/>} />
+        <Route path="/medical-history" element={<MedicalHistory />} />
+        <Route path="/patient/labtests" element={<LabTest />} />
+        <Route path="/doctor/labtests" element={<LabTest />} />
         
       </Routes>
     </BrowserRouter>
