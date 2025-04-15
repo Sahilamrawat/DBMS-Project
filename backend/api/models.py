@@ -291,7 +291,7 @@ def initialize_database():
             CREATE TABLE IF NOT EXISTS api_emergency (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 patient_id INT NOT NULL,
-                doctor_id INT NOT NULL,
+                doctor_id INT NULL,
                 emergency_type VARCHAR(50),
                 severity VARCHAR(20),
                 symptoms TEXT,
@@ -300,7 +300,7 @@ def initialize_database():
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 FOREIGN KEY (patient_id) REFERENCES api_patient(id) ON DELETE CASCADE,
-                FOREIGN KEY (doctor_id) REFERENCES api_doctor(id) ON DELETE CASCADE
+                FOREIGN KEY (doctor_id) REFERENCES api_doctor(id) ON DELETE SET NULL
             )
         """, [], fetch=False)
 

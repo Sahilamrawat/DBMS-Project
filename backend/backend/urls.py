@@ -38,14 +38,11 @@ urlpatterns = [
     path('api/doctors/', DoctorListView.as_view(), name='doctor-list'),
     path('api/appointments/', AppointmentListView.as_view(), name='appointment-list'),
     path('api/appointments/create/', AppointmentCreateView.as_view(), name='appointment-create'),
-    path('api/', include('api.urls')),
-
-        # Custom Consultancy paths
+    # Custom Consultancy paths
     path('api/consultancies/', consultancy_list, name='consultancy-list'),
     path('api/consultancies/<int:pk>/', consultancy_detail, name='consultancy-detail'),
 
-        # ✅ Emergency paths
+    # ✅ Emergency paths
     path('api/emergencies/', emergency_list, name='emergency-list'),
     path('api/emergencies/<int:pk>/', emergency_detail, name='emergency-detail'),
-
 ]

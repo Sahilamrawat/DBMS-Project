@@ -62,7 +62,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             last_name=validated_data['last_name']
         )
         return user
-
+    
 class NoteSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     title = serializers.CharField(required=True)
@@ -194,13 +194,79 @@ class ConsultancySerializer(serializers.Serializer):
 class EmergencySerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     patient_id = serializers.IntegerField(required=True)
-    doctor_id = serializers.IntegerField(required=False)
-    request_time = serializers.DateTimeField(read_only=True)
-    ambulance_assign_status = serializers.CharField(default='No')
-    ambulance_assigned = serializers.CharField(required=False)
-    status = serializers.CharField(default='Pending')
-    arrival_time_in_hospital = serializers.DateTimeField(required=False)
-    driver_name = serializers.CharField(required=False)
-    driver_contact_num = serializers.CharField(required=False)
-    legal_issues_reported = serializers.CharField(default='No')
-    legal_case_number = serializers.CharField(required=False)
+    doctor_id = serializers.IntegerField(required=False, allow_null=True)
+    emergency_type = serializers.CharField(default='General', allow_blank=True)
+    severity = serializers.CharField(default='Medium', allow_blank=True)
+    symptoms = serializers.CharField(required=False, allow_blank=True)
+    treatment_given = serializers.CharField(required=False, allow_blank=True)
+    status = serializers.CharField(default='PENDING')
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+    patient_name = serializers.CharField(required=False, allow_blank=True)  # Added
+    patient_unique_id = serializers.CharField(required=False, allow_blank=True)  # Added
+    patient_adhaar = serializers.CharField(required=False, allow_blank=True)  # Added
+    patient_type = serializers.CharField(required=False, allow_blank=True)  # Added
+    patient_phone = serializers.CharField(required=False, allow_blank=True)  # Added
+    patient_address = serializers.CharField(required=False, allow_blank=True)  # Added
+    patient_emergency_contact = serializers.CharField(required=False, allow_blank=True)  # Added
+    doctor_name = serializers.CharField(required=False, allow_blank=True)  # Added
+    doctor_unique_id = serializers.CharField(required=False, allow_blank=True)  # Added
+    doctor_specialization = serializers.CharField(required=False, allow_blank=True)  # Added
+    doctor_fee = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)  # Added
+    doctor_experience = serializers.IntegerField(required=False, allow_null=True)  # Added
+
+    def create(self, validated_data):
+        from .models import execute_query
+        query = """
+            INSERT INTO api_emergency (
+                patient_id, doctor_id, emergency_type, severity, symptoms,
+                treatment_given, status, created_at, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        """
+        params = [
+            validated_data['patient_id'],
+            validated_data.get('doctor_id'),
+            validated_data.get('emergency_type', 'General'),
+            validated_data.get('severity', 'Medium'),
+            validated_data.get('symptoms', ''),
+            validated_data.get('treatment_given', ''),
+            validated_data.get('status', 'PENDING')
+        ]
+        execute_query(query, params, fetch=False)
+        query = "SELECT LAST_INSERT_ID() as id"
+        result = execute_query(query)
+        return {**validated_data, 'id': result[0]['id']}
+
+    def update(self, instance, validated_data):
+        from .models import execute_query
+        update_fields = []
+        params = []
+
+        if 'doctor_id' in validated_data:
+            update_fields.append("doctor_id = %s")
+            params.append(validated_data.get('doctor_id'))
+        if 'emergency_type' in validated_data:
+            update_fields.append("emergency_type = %s")
+            params.append(validated_data.get('emergency_type'))
+        if 'severity' in validated_data:
+            update_fields.append("severity = %s")
+            params.append(validated_data.get('severity'))
+        if 'symptoms' in validated_data:
+            update_fields.append("symptoms = %s")
+            params.append(validated_data.get('symptoms'))
+        if 'treatment_given' in validated_data:
+            update_fields.append("treatment_given = %s")
+            params.append(validated_data.get('treatment_given'))
+        if 'status' in validated_data:
+            update_fields.append("status = %s")
+            params.append(validated_data.get('status'))
+        update_fields.append("updated_at = NOW()")
+        params.append(instance['id'])
+
+        query = f"""
+            UPDATE api_emergency
+            SET {', '.join(update_fields)}
+            WHERE id = %s
+        """
+        execute_query(query, params, fetch=False)
+        return {**instance, **validated_data}

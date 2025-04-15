@@ -17,6 +17,9 @@ import Doctor from './pages/Doctor'
 import Consultancy from './pages/Consultancy'
 import DoctorProfile from './pages/DoctorProfile'
 import ManageAppointments from './pages/ManageAppointments'
+import EmergencyDetails from './pages/EmergencyDetails'
+import PatientEmergency from './pages/PatientEmergency'
+import DoctorEmergency from './pages/DoctorEmergency'
 
 
 function Logout(){
@@ -44,10 +47,13 @@ function App() {
         <Route path="/services" element={<FeaturesPage />} />
         <Route path='profile' element={<Profile/>}/>
         <Route path='/doctor-profile' element={<DoctorProfile/>}/>
-        <Route path="/appointments" element={<Appointment />} />
+        <Route path="/appointment" element={<Appointment />} />
         <Route path='/doctors' element={<Doctor/>} />
         <Route path='/consultations' element={<Consultancy/>} />
         <Route path='/doctor/appointments' element={<ManageAppointments/>} />
+        <Route path='/emergency/:id' element={<EmergencyDetails/>} />
+        <Route path='/patient/emergencies' element={<PatientEmergency/>} />
+        <Route path='/doctor/emergencies' element={<DoctorEmergency/>} />
         
       </Routes>
     </BrowserRouter>

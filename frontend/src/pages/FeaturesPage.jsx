@@ -108,6 +108,7 @@ const FeaturesPage = () => {
       title: "Emergency Services",
       description: "Quick access to emergency services and nearby facilities.",
       action: "Emergency Help",
+      onClick: () => navigate('/patient/emergencies')
     }
   ];
 
@@ -160,7 +161,7 @@ const FeaturesPage = () => {
       title: "Emergency Requests",
       description: "Manage and respond to emergency consultation requests.",
       action: "View Requests",
-      onClick: () => navigate('/doctor/emergency')
+      onClick: () => navigate('/doctor/emergencies')
     },
     
   ];

@@ -115,7 +115,7 @@ class NoteListCreate(generics.ListCreateAPIView):
             WHERE user_id = %s
         """
         return execute_query(query, [self.request.user.id])
-
+    
     def perform_create(self, serializer):
         if serializer.is_valid():
             serializer.save(user_id=self.request.user.id)
@@ -139,7 +139,7 @@ class NoteDelete(generics.DestroyAPIView):
             WHERE id = %s AND user_id = %s
         """
         execute_query(query, [instance['id'], self.request.user.id], fetch=False)
-
+    
 class CreateUserView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
@@ -878,37 +878,84 @@ class EmergencyViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        # First check if the user is a doctor
         query = """
-            SELECT e.*, 
-                   p.first_name as patient_first_name,
-                   p.last_name as patient_last_name,
-                   d.first_name as doctor_first_name,
-                   d.last_name as doctor_last_name,
-                   DATE_FORMAT(e.request_time, '%Y-%m-%d %H:%i:%s') as request_time,
-                   DATE_FORMAT(e.arrival_time_in_hospital, '%Y-%m-%d %H:%i:%s') as arrival_time_in_hospital,
-                   DATE_FORMAT(e.created_at, '%Y-%m-%d %H:%i:%s') as created_at,
-                   DATE_FORMAT(e.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at
-            FROM Emergency e
-            LEFT JOIN Patient p ON e.patient_id = p.id
-            LEFT JOIN Doctor d ON e.doctor_id = d.id
-            JOIN User u ON p.user_id = u.id
-            WHERE u.id = %s
-            ORDER BY e.request_time DESC
+            SELECT id FROM api_doctor
+            WHERE user_id = %s
         """
-        emergencies = execute_query(query, [self.request.user.id])
+        is_doctor = execute_query(query, [self.request.user.id])
+
+        if is_doctor:
+            # If user is a doctor, show emergencies assigned to them
+            query = """
+                SELECT 
+                    e.*,
+                    -- Patient Information
+                    CONCAT(pu.first_name, ' ', pu.last_name) as patient_name,
+                    p.patient_id as patient_unique_id,
+                    p.adhaar_number as patient_adhaar,
+                    p.patient_type as patient_type,
+                    pp.phone as patient_phone,
+                    pp.address as patient_address,
+                    pp.emergency_contact as patient_emergency_contact,
+                    -- Doctor Information
+                    CONCAT(du.first_name, ' ', du.last_name) as doctor_name,
+                    d.doctor_id as doctor_unique_id,
+                    d.specialization as doctor_specialization,
+                    d.consultation_fee as doctor_fee,
+                    d.experience_years as doctor_experience
+                FROM api_emergency e
+                -- Patient Joins
+                LEFT JOIN api_patient p ON e.patient_id = p.id
+                LEFT JOIN api_profile pp ON p.user_id = pp.user_id
+                LEFT JOIN auth_user pu ON p.user_id = pu.id
+                -- Doctor Joins
+                LEFT JOIN api_doctor d ON e.doctor_id = d.id
+                LEFT JOIN auth_user du ON d.user_id = du.id
+                WHERE d.user_id = %s
+                ORDER BY e.created_at DESC
+            """
+            emergencies = execute_query(query, [self.request.user.id])
+        else:
+            # If user is a patient, show their emergencies
+            query = """
+                SELECT 
+                    e.*,
+                    -- Patient Information
+                    CONCAT(pu.first_name, ' ', pu.last_name) as patient_name,
+                    p.patient_id as patient_unique_id,
+                    p.adhaar_number as patient_adhaar,
+                    p.patient_type as patient_type,
+                    pp.phone as patient_phone,
+                    pp.address as patient_address,
+                    pp.emergency_contact as patient_emergency_contact,
+                    -- Doctor Information
+                    CONCAT(du.first_name, ' ', du.last_name) as doctor_name,
+                    d.doctor_id as doctor_unique_id,
+                    d.specialization as doctor_specialization,
+                    d.consultation_fee as doctor_fee,
+                    d.experience_years as doctor_experience
+                FROM api_emergency e
+                -- Patient Joins
+                LEFT JOIN api_patient p ON e.patient_id = p.id
+                LEFT JOIN api_profile pp ON p.user_id = pp.user_id
+                LEFT JOIN auth_user pu ON p.user_id = pu.id
+                -- Doctor Joins
+                LEFT JOIN api_doctor d ON e.doctor_id = d.id
+                LEFT JOIN auth_user du ON d.user_id = du.id
+                WHERE p.user_id = %s
+                ORDER BY e.created_at DESC
+            """
+            emergencies = execute_query(query, [self.request.user.id])
         
-        # Format the response
+        # Format dates using Python
         for emergency in emergencies:
-            if emergency['patient_first_name'] and emergency['patient_last_name']:
-                emergency['patient_name'] = f"{emergency['patient_first_name']} {emergency['patient_last_name']}"
-            if emergency['doctor_first_name'] and emergency['doctor_last_name']:
-                emergency['doctor_name'] = f"Dr. {emergency['doctor_first_name']} {emergency['doctor_last_name']}"
-            
-            # Remove the extra fields we added for the join
-            del emergency['patient_first_name']
-            del emergency['patient_last_name']
-            del emergency['doctor_first_name']
-            del emergency['doctor_last_name']
+            if emergency['created_at']:
+                emergency['created_at'] = emergency['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            if emergency['updated_at']:
+                emergency['updated_at'] = emergency['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
+            if emergency['arrival_time_in_hospital']:
+                emergency['arrival_time_in_hospital'] = emergency['arrival_time_in_hospital'].strftime('%Y-%m-%d %H:%M:%S')
         
         return emergencies
 
@@ -916,8 +963,8 @@ class EmergencyViewSet(viewsets.ModelViewSet):
         try:
             # Get patient ID from user ID
             query = """
-                SELECT p.id FROM Patient p
-                JOIN User u ON p.user_id = u.id
+                SELECT p.id FROM api_patient p
+                JOIN auth_user u ON p.user_id = u.id
                 WHERE u.id = %s
             """
             patient = execute_query(query, [request.user.id])
@@ -929,63 +976,215 @@ class EmergencyViewSet(viewsets.ModelViewSet):
 
             # Insert emergency request
             query = """
-                INSERT INTO Emergency (
+                INSERT INTO api_emergency (
                     patient_id, doctor_id,
-                    ambulance_assign_status, ambulance_assigned,
-                    status, arrival_time_in_hospital,
-                    driver_name, driver_contact_num,
-                    legal_issues_reported, legal_case_number
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    emergency_type, severity, symptoms,
+                    treatment_given, status,
+                    created_at, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
             """
             params = [
                 patient_id,
                 request.data.get('doctor_id'),
-                request.data.get('ambulance_assign_status', 'No'),
-                request.data.get('ambulance_assigned'),
-                request.data.get('status', 'Pending'),
-                request.data.get('arrival_time_in_hospital'),
-                request.data.get('driver_name'),
-                request.data.get('driver_contact_num'),
-                request.data.get('legal_issues_reported', 'No'),
-                request.data.get('legal_case_number')
+                request.data.get('emergency_type', 'General'),
+                request.data.get('severity', 'Medium'),
+                request.data.get('symptoms', ''),
+                request.data.get('treatment_given', ''),
+                request.data.get('status', 'PENDING')
             ]
             
-            emergency_id = execute_query(query, params, fetch=False)
+            execute_query(query, params, fetch=False)
+            
+            # Get the last inserted ID
+            query = "SELECT LAST_INSERT_ID() as id"
+            result = execute_query(query)
+            emergency_id = result[0]['id']
 
             # Get the created emergency request
             query = """
                 SELECT e.*, 
-                       p.first_name as patient_first_name,
-                       p.last_name as patient_last_name,
-                       d.first_name as doctor_first_name,
-                       d.last_name as doctor_last_name,
-                       DATE_FORMAT(e.request_time, '%Y-%m-%d %H:%i:%s') as request_time,
-                       DATE_FORMAT(e.arrival_time_in_hospital, '%Y-%m-%d %H:%i:%s') as arrival_time_in_hospital,
-                       DATE_FORMAT(e.created_at, '%Y-%m-%d %H:%i:%s') as created_at,
-                       DATE_FORMAT(e.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at
-                FROM Emergency e
-                LEFT JOIN Patient p ON e.patient_id = p.id
-                LEFT JOIN Doctor d ON e.doctor_id = d.id
+                       CONCAT(pu.first_name, ' ', pu.last_name) as patient_name,
+                       CONCAT(du.first_name, ' ', du.last_name) as doctor_name
+                FROM api_emergency e
+                LEFT JOIN api_patient p ON e.patient_id = p.id
+                LEFT JOIN api_doctor d ON e.doctor_id = d.id
+                LEFT JOIN auth_user pu ON p.user_id = pu.id
+                LEFT JOIN auth_user du ON d.user_id = du.id
                 WHERE e.id = %s
             """
             emergency = execute_query(query, [emergency_id])[0]
             
-            # Format the response
-            if emergency['patient_first_name'] and emergency['patient_last_name']:
-                emergency['patient_name'] = f"{emergency['patient_first_name']} {emergency['patient_last_name']}"
-            if emergency['doctor_first_name'] and emergency['doctor_last_name']:
-                emergency['doctor_name'] = f"Dr. {emergency['doctor_first_name']} {emergency['doctor_last_name']}"
-            
-            # Remove the extra fields we added for the join
-            del emergency['patient_first_name']
-            del emergency['patient_last_name']
-            del emergency['doctor_first_name']
-            del emergency['doctor_last_name']
+            # Format dates using Python
+            if emergency['created_at']:
+                emergency['created_at'] = emergency['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            if emergency['updated_at']:
+                emergency['updated_at'] = emergency['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
             
             return Response(emergency, status=201)
-                
+            
         except Exception as e:
+            print("Error creating emergency:", str(e))
             return Response({"error": str(e)}, status=400)
+
+    def partial_update(self, request, pk=None):
+        try:
+            # Validate emergency exists
+            query = """
+                SELECT * FROM api_emergency
+                WHERE id = %s
+            """
+            emergency = execute_query(query, [pk])
+            
+            if not emergency:
+                return Response({"error": "Emergency request not found"}, status=404)
+
+            # If updating doctor_id, validate doctor exists
+            doctor_id = request.data.get('doctor_id')
+            if doctor_id:
+                query = """
+                    SELECT id FROM api_doctor
+                    WHERE id = %s
+                """
+                doctor = execute_query(query, [doctor_id])
+                
+                if not doctor:
+                    return Response({"error": "Doctor not found"}, status=404)
+
+                # Update emergency with doctor assignment
+                query = """
+                    UPDATE api_emergency
+                    SET doctor_id = %s,
+                        status = CASE 
+                            WHEN status = 'PENDING' THEN 'ASSIGNED'
+                            ELSE status
+                        END,
+                        updated_at = NOW()
+                    WHERE id = %s
+                """
+                execute_query(query, [doctor_id, pk], fetch=False)
+            
+            # Handle ambulance assignment fields
+            ambulance_assign_status = request.data.get('ambulance_assign_status')
+            ambulance_assigned = request.data.get('ambulance_assigned')
+            driver_name = request.data.get('driver_name')
+            driver_contact_num = request.data.get('driver_contact_num')
+            arrival_time_in_hospital = request.data.get('arrival_time_in_hospital')
+            
+            if ambulance_assign_status or ambulance_assigned or driver_name or driver_contact_num or arrival_time_in_hospital:
+                # Build the update query dynamically based on provided fields
+                update_fields = []
+                params = []
+                
+                if ambulance_assign_status:
+                    update_fields.append("ambulance_assign_status = %s")
+                    params.append(ambulance_assign_status)
+                
+                if ambulance_assigned:
+                    update_fields.append("ambulance_assigned = %s")
+                    params.append(ambulance_assigned)
+                
+                if driver_name:
+                    update_fields.append("driver_name = %s")
+                    params.append(driver_name)
+                
+                if driver_contact_num:
+                    update_fields.append("driver_contact_num = %s")
+                    params.append(driver_contact_num)
+                
+                if arrival_time_in_hospital:
+                    update_fields.append("arrival_time_in_hospital = %s")
+                    params.append(arrival_time_in_hospital)
+                
+                # Add updated_at field
+                update_fields.append("updated_at = NOW()")
+                
+                # Add the id parameter
+                params.append(pk)
+                
+                # Execute the update query
+                query = f"""
+                    UPDATE api_emergency
+                    SET {', '.join(update_fields)}
+                    WHERE id = %s
+                """
+                execute_query(query, params, fetch=False)
+
+            # Get updated emergency
+            query = """
+                SELECT e.*, 
+                       CONCAT(pu.first_name, ' ', pu.last_name) as patient_name,
+                       CONCAT(du.first_name, ' ', du.last_name) as doctor_name
+                FROM api_emergency e
+                LEFT JOIN api_patient p ON e.patient_id = p.id
+                LEFT JOIN api_doctor d ON e.doctor_id = d.id
+                LEFT JOIN auth_user pu ON p.user_id = pu.id
+                LEFT JOIN auth_user du ON d.user_id = du.id
+                WHERE e.id = %s
+            """
+            updated_emergency = execute_query(query, [pk])[0]
+            
+            # Format dates using Python
+            if updated_emergency['created_at']:
+                updated_emergency['created_at'] = updated_emergency['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            if updated_emergency['updated_at']:
+                updated_emergency['updated_at'] = updated_emergency['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
+            
+            return Response(updated_emergency)
+
+        except Exception as e:
+            print("Error updating emergency:", str(e))
+            return Response({"error": str(e)}, status=400)
+
+    def retrieve(self, request, pk=None):
+        try:
+            # Get emergency details with all related information
+            query = """
+                SELECT 
+                    e.*,
+                    -- Patient Information
+                    CONCAT(pu.first_name, ' ', pu.last_name) as patient_name,
+                    p.patient_id as patient_unique_id,
+                    p.adhaar_number as patient_adhaar,
+                    p.patient_type as patient_type,
+                    pp.phone as patient_phone,
+                    pp.address as patient_address,
+                    pp.emergency_contact as patient_emergency_contact,
+                    -- Doctor Information
+                    CONCAT(du.first_name, ' ', du.last_name) as doctor_name,
+                    d.doctor_id as doctor_unique_id,
+                    d.specialization as doctor_specialization,
+                    d.consultation_fee as doctor_fee,
+                    d.experience_years as doctor_experience
+                FROM api_emergency e
+                -- Patient Joins
+                LEFT JOIN api_patient p ON e.patient_id = p.id
+                LEFT JOIN api_profile pp ON p.user_id = pp.user_id
+                LEFT JOIN auth_user pu ON p.user_id = pu.id
+                -- Doctor Joins
+                LEFT JOIN api_doctor d ON e.doctor_id = d.id
+                LEFT JOIN auth_user du ON d.user_id = du.id
+                WHERE e.id = %s
+            """
+            emergency = execute_query(query, [pk])
+            
+            if not emergency:
+                return Response({'error': 'Emergency not found'}, status=404)
+            
+            emergency = emergency[0]
+            
+            # Format dates
+            if emergency['created_at']:
+                emergency['created_at'] = emergency['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            if emergency['updated_at']:
+                emergency['updated_at'] = emergency['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
+            if emergency['arrival_time_in_hospital']:
+                emergency['arrival_time_in_hospital'] = emergency['arrival_time_in_hospital'].strftime('%Y-%m-%d %H:%M:%S')
+            
+            return Response(emergency)
+            
+        except Exception as e:
+            print("Error retrieving emergency:", str(e))
+            return Response({'error': str(e)}, status=404)
 
 class AppointmentUpdateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -1059,3 +1258,4 @@ class AppointmentUpdateView(APIView):
             # Rollback transaction on error
             execute_query("ROLLBACK", [], fetch=False)
             return Response({"error": str(e)}, status=400)
+        
