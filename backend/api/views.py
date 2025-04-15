@@ -2,12 +2,12 @@ from django.shortcuts import render
 from django.contrib.auth.models import User
 from rest_framework import generics
 from rest_framework import viewsets
-from .serializers import UserRegistrationSerializer, NoteSerializer, DoctorSerializer, AppointmentSerializer, EmergencySerializer,LabTestSerializer , MedicalHistorySerializer
+from .serializers import UserRegistrationSerializer, NoteSerializer, DoctorSerializer, AppointmentSerializer, EmergencySerializer,LabTestSerializer , MedicalHistorySerializer,FeedbackSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import EmailTokenObtainPairSerializer, ProfileSerializer, ConsultancySerializer
-from .models import execute_query
+from .models import execute_query ,fetch_all, fetch_one
 from rest_framework.response import Response
 from django.http import JsonResponse
 import json
@@ -19,7 +19,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.contrib.auth.hashers import make_password, check_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from datetime import datetime
+from datetime import datetime , timedelta
 from django.utils.dateparse import parse_datetime
 from django.db import connection
 
@@ -1888,4 +1888,110 @@ class SurgeryHistoryPatientsView(APIView):
         params = [patient, f"%{patient}%"]
         data = run_raw_query(query, params)
         return Response(data)
+
+
+class FeedbackView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            query = """
+                SELECT * FROM api_feedback 
+                WHERE patient_id = %s AND is_active = TRUE
+            """
+            params = [request.user.id]
+            result = execute_query(query, params, fetch=True)
+            if not result:
+                return Response({"message": "No feedback found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request):
+        data = request.data.copy()
+        data['patient_id'] = request.user.id
+
+        serializer = FeedbackSerializer(data=data)
+        if serializer.is_valid():
+            try:
+                serializer.create(serializer.validated_data)
+                return Response({"message": "Feedback submitted successfully."}, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, feedback_id=None):
+        try:
+            # Fetch existing feedback
+            fetch_query = """
+                SELECT * FROM api_feedback 
+                WHERE feedback_id = %s AND patient_id = %s AND is_active = TRUE
+            """
+            params = [feedback_id, request.user.id]
+            existing = execute_query(fetch_query, params, fetch=True)
+            if not existing:
+                return Response({"message": "Feedback not found or not authorized."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = FeedbackSerializer(data=request.data, partial=True)
+            if serializer.is_valid():
+                updated = serializer.update(existing[0], serializer.validated_data)
+                return Response({
+                    "message": "Feedback updated successfully.",
+                    "data": updated
+                }, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, feedback_id=None):
+        try:
+            # Soft delete feedback by setting is_active to FALSE
+            query = """
+                UPDATE api_feedback 
+                SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+                WHERE feedback_id = %s AND patient_id = %s AND is_active = TRUE
+            """
+            params = [feedback_id, request.user.id]
+            result = execute_query(query, params, fetch=False)
+            
+            if result == 0:
+                return Response({"message": "Feedback not found or not authorized."}, status=status.HTTP_404_NOT_FOUND)
+                
+            return Response({"message": "Feedback deleted successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+
+class FeedbackDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            user = request.user
+            query = """
+                SELECT 
+                    f.feedback_id,
+                    CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+                    COALESCE(CONCAT(d.first_name, ' ', d.last_name), 'No Doctor Assigned') AS doctor_name,
+                    f.rating,
+                    f.comments,
+                    f.created_at AS date_submitted,
+                    f.patient_id,
+                    f.doctor_id
+                FROM api_feedback f
+                JOIN api_patient p ON f.patient_id = p.patient_id
+                LEFT JOIN api_doctor d ON f.doctor_id = d.doctor_id
+                WHERE f.is_active = TRUE
+                AND (%s = 'patient' AND f.patient_id = %s OR %s = 'doctor' AND f.doctor_id = %s)
+            """
+            # Determine user type (assuming user has a role field or similar; adjust as per your auth model)
+            user_type = getattr(user, 'role', 'patient')  # Adjust 'role' based on your user model
+            params = [user_type, user.id, user_type, user.id]
+            
+            result = execute_query(query, params, fetch=True)
+            if not result:
+                return Response({"message": "No feedback found."}, status=status.HTTP_404_NOT_FOUND)
+            
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -354,6 +354,23 @@ def initialize_database():
             )
         """, [], fetch=False)
 
+        execute_query("""
+    CREATE TABLE IF NOT EXISTS api_feedback (
+        feedback_id INT AUTO_INCREMENT PRIMARY KEY,
+        patient_id INT NOT NULL,
+        doctor_id INT NULL,
+        lab_test_id INT NULL,
+        rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+        comments TEXT NULL,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT fk_feedback_patient FOREIGN KEY (patient_id) REFERENCES api_patient(patient_id) ON DELETE CASCADE,
+        CONSTRAINT fk_feedback_doctor FOREIGN KEY (doctor_id) REFERENCES api_doctor(doctor_id) ON DELETE SET NULL,
+        CONSTRAINT fk_feedback_lab_test FOREIGN KEY (lab_test_id) REFERENCES api_lab_test(lab_test_id) ON DELETE SET NULL
+    )
+""", [], fetch=False)
+
 
         print("Database initialized successfully!")
         print("Created tables:")

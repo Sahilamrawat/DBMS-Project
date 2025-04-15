@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from api.views import CreateUserView, CustomTokenObtainPairView,ProfileDetailView, DoctorListView, AppointmentListView, AppointmentCreateView ,  ConsultancyViewSet , EmergencyViewSet ,AssignLabTestView, DoctorLabTestListView, PatientLabTestListView,PatientLabTestRequestView,EmergencyPatientListView , MedicalHistoryView, AllMedicalHistoryView,ChronicDiseasePatientsView,SurgeryHistoryPatientsView,DoctorMedicalHistoryView
+from api.views import CreateUserView, CustomTokenObtainPairView,ProfileDetailView, DoctorListView, AppointmentListView, AppointmentCreateView ,  ConsultancyViewSet , EmergencyViewSet ,AssignLabTestView, DoctorLabTestListView, PatientLabTestListView,PatientLabTestRequestView,EmergencyPatientListView , MedicalHistoryView, AllMedicalHistoryView,ChronicDiseasePatientsView,SurgeryHistoryPatientsView,DoctorMedicalHistoryView,FeedbackView, FeedbackDetailView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -63,5 +63,14 @@ urlpatterns = [
     path('api/medical-history/chronic/', ChronicDiseasePatientsView.as_view(), name='chronic_disease_patients'),
     path('api/medical-history/surgeries/', SurgeryHistoryPatientsView.as_view(), name='surgery_history_patients'),
     path('api/medical-history/doctor/', DoctorMedicalHistoryView.as_view(), name='doctor_medical_history'),
+
+    # Feedback routes
+    path('feedback/', FeedbackView.as_view(), name='feedback'),
+    path('feedback/<int:feedback_id>/', FeedbackView.as_view(), name='feedback-detail'),
+    path('feedback-detail/', FeedbackDetailView.as_view(), name='feedback-detail-view'),
+
+
+
+
 ]
 

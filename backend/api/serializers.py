@@ -444,3 +444,72 @@ class MedicalHistorySerializer(serializers.Serializer):
             # Rollback in case of error
             execute_query("ROLLBACK", [], fetch=False)
             raise e
+
+
+
+class FeedbackSerializer(serializers.Serializer):
+    feedback_id = serializers.IntegerField(read_only=True)
+    patient_id = serializers.IntegerField(required=True)
+    doctor_id = serializers.IntegerField(required=False, allow_null=True)
+    lab_test_id = serializers.IntegerField(required=False, allow_null=True)
+    rating = serializers.IntegerField(required=True)
+    comments = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    is_active = serializers.BooleanField(default=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    def validate_rating(self, value):
+        if not 1 <= value <= 5:
+            raise serializers.ValidationError("Rating must be between 1 and 5.")
+        return value
+
+    def validate(self, data):
+        if not data.get('doctor_id') and not data.get('lab_test_id'):
+            raise serializers.ValidationError("At least one of doctor_id or lab_test_id must be provided.")
+        return data
+
+    def create(self, validated_data):
+        from .models import execute_query
+
+        query = """
+            INSERT INTO api_feedback
+            (patient_id, doctor_id, lab_test_id, rating, comments, is_active)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        params = [
+            validated_data['patient_id'],
+            validated_data.get('doctor_id'),
+            validated_data.get('lab_test_id'),
+            validated_data['rating'],
+            validated_data.get('comments'),
+            validated_data.get('is_active', True)
+        ]
+        execute_query(query, params, fetch=False)
+
+        return validated_data
+
+    def update(self, instance, validated_data):
+        from .models import execute_query
+
+        query = """
+            UPDATE api_feedback
+            SET patient_id = %s,
+                doctor_id = %s,
+                lab_test_id = %s,
+                rating = %s,
+                comments = %s,
+                is_active = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE feedback_id = %s
+        """
+        params = [
+            validated_data.get('patient_id', instance['patient_id']),
+            validated_data.get('doctor_id', instance.get('doctor_id')),
+            validated_data.get('lab_test_id', instance.get('lab_test_id')),
+            validated_data.get('rating', instance['rating']),
+            validated_data.get('comments', instance.get('comments')),
+            validated_data.get('is_active', instance.get('is_active', True)),
+            instance['feedback_id']
+        ]
+        execute_query(query, params, fetch=False)
+        return {**instance, **validated_data}
