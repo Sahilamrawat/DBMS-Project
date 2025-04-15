@@ -355,7 +355,6 @@ def initialize_database():
         """, [], fetch=False)
 
 
-
         print("Database initialized successfully!")
         print("Created tables:")
         print("- User table")

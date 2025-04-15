@@ -1488,7 +1488,6 @@ class MedicalHistoryView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 
-
 def run_raw_query(query, params=None):
     with connection.cursor() as cursor:
         cursor.execute(query, params or [])
@@ -1499,6 +1498,9 @@ class AllMedicalHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        diagnosis = request.GET.get('diagnosis', '')
+        patient = request.GET.get('patient', '')
+
         query = """
             SELECT 
                 p.id AS patient_id,
@@ -1511,9 +1513,12 @@ class AllMedicalHistoryView(APIView):
             FROM api_profile p
             JOIN api_medicalhistory mh ON p.id = mh.patient_id
             JOIN auth_user u ON p.user_id = u.id
+            WHERE (%s = '' OR mh.diagnosis LIKE %s)
+              AND (%s = '' OR CONCAT(u.first_name, ' ', u.last_name) LIKE %s)
             ORDER BY p.id
         """
-        data = run_raw_query(query)
+        params = [diagnosis, f"%{diagnosis}%", patient, f"%{patient}%"]
+        data = run_raw_query(query, params)
         return Response(data)
 
 
@@ -1521,6 +1526,9 @@ class ChronicDiseasePatientsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        diagnosis = request.GET.get('diagnosis', '')
+        patient = request.GET.get('patient', '')
+
         query = """
             SELECT 
                 p.id AS patient_id,
@@ -1529,10 +1537,13 @@ class ChronicDiseasePatientsView(APIView):
             FROM api_profile p
             JOIN api_medicalhistory mh ON p.id = mh.patient_id
             JOIN auth_user u ON p.user_id = u.id
-            WHERE mh.diagnosis LIKE '%Diabetes%' OR mh.diagnosis LIKE '%Hypertension%'
+            WHERE (mh.diagnosis LIKE '%Diabetes%' OR mh.diagnosis LIKE '%Hypertension%')
+              AND (%s = '' OR mh.diagnosis LIKE %s)
+              AND (%s = '' OR CONCAT(u.first_name, ' ', u.last_name) LIKE %s)
             ORDER BY p.id
         """
-        data = run_raw_query(query)
+        params = [diagnosis, f"%{diagnosis}%", patient, f"%{patient}%"]
+        data = run_raw_query(query, params)
         return Response(data)
 
 
@@ -1540,6 +1551,8 @@ class SurgeryHistoryPatientsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        patient = request.GET.get('patient', '')
+
         query = """
             SELECT 
                 p.id AS patient_id,
@@ -1549,8 +1562,10 @@ class SurgeryHistoryPatientsView(APIView):
             JOIN api_medicalhistory mh ON p.id = mh.patient_id
             JOIN auth_user u ON p.user_id = u.id
             WHERE mh.past_surgeries IS NOT NULL AND mh.past_surgeries <> ''
+              AND (%s = '' OR CONCAT(u.first_name, ' ', u.last_name) LIKE %s)
             ORDER BY p.id
         """
-        data = run_raw_query(query)
+        params = [patient, f"%{patient}%"]
+        data = run_raw_query(query, params)
         return Response(data)
         
