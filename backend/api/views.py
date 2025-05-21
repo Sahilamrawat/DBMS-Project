@@ -7,7 +7,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import EmailTokenObtainPairSerializer, ProfileSerializer, ConsultancySerializer
-from .models import execute_query ,fetch_all, fetch_one
+from .models import execute_query 
 from rest_framework.response import Response
 from django.http import JsonResponse
 import json
