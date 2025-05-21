@@ -689,13 +689,13 @@ class AppointmentCreateView(generics.CreateAPIView):
                 }, status=400)
 
             # Insert appointment
-            query = """
+            insert_query = """
                 INSERT INTO api_appointment (
                     patient_id, doctor_id,
                     appointment_date, symptoms, notes,
                     status, created_at, updated_at
                 ) VALUES (%s, %s, %s, %s, %s, 'SCHEDULED', NOW(), NOW())
-                RETURNING id
+                
             """
             params = [
                 patient_id,
@@ -706,8 +706,7 @@ class AppointmentCreateView(generics.CreateAPIView):
             ]
             
             # Execute the insert and get the last inserted ID
-            result = execute_query(query, params)
-            last_id = result[0]['id'] if result else None
+            last_id = execute_query(insert_query, params, fetch=False)
 
             if not last_id:
                 return Response({"detail": "Failed to create appointment"}, status=500)
@@ -2069,7 +2068,12 @@ class MedicineView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PharmacyView(APIView):
-    permission_classes = [IsAuthenticated]
+    def fetch_one(self, query, params):
+        with connection.cursor() as cursor:
+            cursor.execute(query, params)
+            row = cursor.fetchone()
+            if row:
+                columns =    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:

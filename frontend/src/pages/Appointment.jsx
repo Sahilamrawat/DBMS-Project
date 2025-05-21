@@ -90,7 +90,7 @@ function Appointment() {
 
     setLoading(true);
     try {
-      const formattedDate = new Date(appointmentData.appointment_date).toISOString();
+      const formattedDate = new Date(appointmentData.appointment_date).toISOString().slice(0, 19).replace('T', ' ');
 
       const dataToSend = {
         doctor_id: selectedDoctor.id,
