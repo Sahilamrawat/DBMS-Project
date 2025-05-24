@@ -49,3 +49,28 @@
             >> npm run dev
 
     🔁 This starts the frontend server 
+
+
+🛠️ Tools & Technologies Used
+    
+    🌐 Frontend
+
+        React.js – For building fast and interactive UI
+        Vite – Lightning-fast development server and optimized builds
+        Tailwind CSS  – For modern and responsive styling
+        Axios – For making HTTP requests to the backend
+
+    ⚙️ Backend
+
+        Django (Python) – Powerful web framework for rapid backend development
+        Django REST Framework – To build secure, robust RESTful APIs
+        PyMySQL – To connect Django with MySQL database
+        Simple JWT – For token-based authentication
+
+    🗃️ Database
+
+        MySQL – Relational database used to store healthcare data (patients, doctors, appointments, etc.)
+
+    ☁️ Cloud :
+
+        AWS (Amazon Web Services)  – For future deployment or storage solutions
