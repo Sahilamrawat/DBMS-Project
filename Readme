@@ -1,9 +1,51 @@
-### commands to run
-## 1-> #Cd frontend (if not inside the frontend directory)
-## 2-> #npm run dev (to start the localhost server) 
+# commands to run the backend and frontend on both macOS and Windows
+
+📦 Backend (Django)
+
+    ✅ 1. Setup Virtual Environment
+    
+    Only if env/ folder doesn't exist { 
+    
+    For -- macOS / Linux:
+            
+            >> python3 -m venv env
+            >> source env/bin/activate
+    
+    For -- Windows (Command Prompt):
+    
+            >> python -m venv env
+            >> env\Scripts\activate
+    
+    For -- Windows (PowerShell):
+    
+            >> python -m venv env
+            >> .\env\Scripts\Activate.ps1
+    
+    
+    ✅ 2. Install Dependencies
+        # Navigate to the backend folder
+            >> cd backend 
+    
+        #Then install Python packages:
+            >> pip install -r requirement.txt
+            >> pip install pymysql
+    
+    🔁 Note: The file is typically named requirements.txt — if yours is requirement.txt, ensure it's consistent.
+    
+    ✅ 3. Run Django Development Server
+    
+            >> python manage.py runserver
+    
+    🔁 You can now access your backend 
 
 
+🌐 Frontend (React / Vite)
 
-# backend running commands(these commands are for mac please search corresponding commands according to your shell)
-python3 -m venv env
-source env/bin/activate 
+    ✅ 1. Install Dependencies
+       # Navigate to the frontend directory:
+            >> cd frontend
+            >> npm install
+    ✅ 2. Run the Dev Server
+            >> npm run dev
+
+    🔁 This starts the frontend server 
