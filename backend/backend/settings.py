@@ -14,6 +14,8 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 import os
+from pymongo import MongoClient
+import openai
 
 # Load environment variables from .env file
 load_dotenv()
@@ -59,6 +61,7 @@ INSTALLED_APPS = [
     "api",
     "rest_framework",
     "corsheaders",
+    'social_django',
 ]
 
 MIDDLEWARE = [
@@ -125,7 +128,15 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.google.GoogleOAuth2',
+    'django.contrib.auth.backends.ModelBackend',
+)
 
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '618587580136-7cdf2g80k68vpb794o2halci2iq35ali.apps.googleusercontent.com'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
+SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name']
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
@@ -151,3 +162,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb+srv://sahilamrawat002:JDgLSPTvDpbOgsVH@cluster0.t4wgs.mongodb.net/chatBot_db?')
+MONGODB_DB_NAME = os.getenv('MONGODB_DB_NAME', 'chatBot_db')
+
+mongo_client = MongoClient(MONGODB_URI)
+mongo_db = mongo_client[MONGODB_DB_NAME]
+
+openai.api_key = os.getenv('OPENAI_API_KEY')

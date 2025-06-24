@@ -22,6 +22,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from datetime import datetime , timedelta
 from django.utils.dateparse import parse_datetime
 from django.db import connection
+import openai
+from django.conf import settings
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from backend.settings import mongo_db
+import os
+import pdfplumber
 
 
 # Create your views here.
@@ -305,160 +312,163 @@ class ProfileDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        try:
-            # Get user details with all fields
-            query = """
-                SELECT 
-                    id, username, email, first_name, last_name,
-                    is_active, is_staff, is_superuser,
-                    date_joined, last_login
-                FROM auth_user 
-                WHERE id = %s
-            """
-            users = execute_query(query, [request.user.id])
-            
-            if not users:
-                return Response(
-                    {"detail": "User not found"},
-                    status=404
-                )
-            
-            user = users[0]
-            
-            # Get profile details with all fields
-            query = """
-                SELECT 
-                    id, user_id, phone, address, 
-                    date_of_birth, gender, blood_group, 
-                    height, weight, emergency_contact,
-                    insurance_status, insurance_number,
-                    allergies, medical_conditions,
-                    user_type, profile_picture,
-                    created_at, updated_at
-                FROM api_profile 
-                WHERE user_id = %s
-            """
-            profiles = execute_query(query, [request.user.id])
-            
-            if not profiles:
-                return Response(
-                    {"detail": "Profile not found"},
-                    status=404
-                )
-            
-            profile = profiles[0]
-            
-            # Get patient details if user is a patient
-            patient_data = None
-            if profile['user_type'] == 'PATIENT':
-                query = """
-                    SELECT 
-                        id, patient_id, adhaar_number,
-                        patient_type, registration_date,
-                        last_visit_date, next_appointment_date,
-                        medical_history, current_medications,
-                        family_history, lifestyle_factors,
-                        vaccination_history
-                    FROM api_patient 
-                    WHERE user_id = %s
-                """
-                patients = execute_query(query, [request.user.id])
-                if patients:
-                    patient_data = patients[0]
-            
-            # Get doctor details if user is a doctor
-            doctor_data = None
-            if profile['user_type'] == 'DOCTOR':
-                query = """
-                    SELECT 
-                        id, doctor_id, specialization,
-                        consultation_fee, experience_years,
-                        qualifications, available_days,
-                        available_hours, is_available
-                    FROM api_doctor 
-                    WHERE user_id = %s
-                """
-                doctors = execute_query(query, [request.user.id])
-                if doctors:
-                    doctor_data = doctors[0]
-            
-            # Get notes
-            query = """
-                SELECT 
-                    id, title, content, 
-                    created_at, updated_at
-                FROM api_note 
-                WHERE user_id = %s
-            """
-            notes = execute_query(query, [request.user.id])
-            
-            # Get appointments
-            query = """
-                SELECT 
-                    a.id, a.patient_id, a.doctor_id,
-                    a.appointment_date, a.symptoms, a.notes,
-                    a.status, a.created_at, a.updated_at,
-                    CONCAT('Dr. ', du.first_name, ' ', du.last_name) as doctor_name,
-                    CONCAT(pu.first_name, ' ', pu.last_name) as patient_name
-                FROM api_appointment a
-                JOIN api_patient p ON a.patient_id = p.id
-                JOIN api_doctor d ON a.doctor_id = d.id
-                JOIN auth_user du ON d.user_id = du.id
-                JOIN auth_user pu ON p.user_id = pu.id
-                WHERE (p.user_id = %s OR d.user_id = %s)
-                ORDER BY a.appointment_date DESC
-            """
-            appointments = execute_query(query, [request.user.id, request.user.id])
-            
-            # Format appointment dates
-            for appointment in appointments:
-                if appointment['appointment_date']:
-                    appointment['appointment_date'] = appointment['appointment_date'].strftime('%Y-%m-%d %H:%M:%S')
-                if appointment['created_at']:
-                    appointment['created_at'] = appointment['created_at'].strftime('%Y-%m-%d %H:%M:%S')
-                if appointment['updated_at']:
-                    appointment['updated_at'] = appointment['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
-            
-            # Get consultations
-            query = """
-                SELECT 
-                    id, patient_id, doctor_id,
-                    appointment_id, diagnosis, prescription,
-                    follow_up_date, created_at, updated_at
-                FROM api_consultancy 
-                WHERE patient_id = %s
-            """
-            consultations = execute_query(query, [request.user.id])
-            
-            # Get emergencies
-            query = """
-                SELECT 
-                    id, patient_id, doctor_id,
-                    emergency_type, severity, symptoms,
-                    treatment_given, status,
-                    created_at, updated_at
-                FROM api_emergency 
-                WHERE patient_id = %s
-            """
-            emergencies = execute_query(query, [request.user.id])
-            
-            return Response({
-                'user': user,
-                'profile': profile,
-                'patient': patient_data,
-                'doctor': doctor_data,
-                'notes': notes,
-                'appointments': appointments,
-                'consultations': consultations,
-                'emergencies': emergencies
-            })
-            
-        except Exception as e:
+        user_id = request.user.id
+        # Fetch the profile for the current user only
+        query = """
+            SELECT * FROM api_profile WHERE user_id = %s
+        """
+        profiles = execute_query(query, [user_id])
+        if not profiles:
+            return Response({"detail": "Profile not found"}, status=404)
+        profile = profiles[0]
+        
+        # Get user details with all fields
+        query = """
+            SELECT 
+                id, username, email, first_name, last_name,
+                is_active, is_staff, is_superuser,
+                date_joined, last_login
+            FROM auth_user 
+            WHERE id = %s
+        """
+        users = execute_query(query, [user_id])
+        
+        if not users:
             return Response(
-                {"detail": str(e)},
-                status=500
+                {"detail": "User not found"},
+                status=404
             )
-
+        
+        user = users[0]
+        
+        # Get profile details with all fields
+        query = """
+            SELECT 
+                id, user_id, phone, address, 
+                date_of_birth, gender, blood_group, 
+                height, weight, emergency_contact,
+                insurance_status, insurance_number,
+                allergies, medical_conditions,
+                user_type, profile_picture,
+                created_at, updated_at
+            FROM api_profile 
+            WHERE user_id = %s
+        """
+        profiles = execute_query(query, [user_id])
+        
+        if not profiles:
+            return Response(
+                {"detail": "Profile not found"},
+                status=404
+            )
+        
+        profile = profiles[0]
+        
+        # Get patient details if user is a patient
+        patient_data = None
+        if profile['user_type'] == 'PATIENT':
+            query = """
+                SELECT 
+                    id, patient_id, adhaar_number,
+                    patient_type, registration_date,
+                    last_visit_date, next_appointment_date,
+                    medical_history, current_medications,
+                    family_history, lifestyle_factors,
+                    vaccination_history
+                FROM api_patient 
+                WHERE user_id = %s
+            """
+            patients = execute_query(query, [user_id])
+            if patients:
+                patient_data = patients[0]
+        
+        # Get doctor details if user is a doctor
+        doctor_data = None
+        if profile['user_type'] == 'DOCTOR':
+            query = """
+                SELECT 
+                    id, doctor_id, specialization,
+                    consultation_fee, experience_years,
+                    qualifications, available_days,
+                    available_hours, is_available
+                FROM api_doctor 
+                WHERE user_id = %s
+            """
+            doctors = execute_query(query, [user_id])
+            if doctors:
+                doctor_data = doctors[0]
+        
+        # Get notes
+        query = """
+            SELECT 
+                id, title, content, 
+                created_at, updated_at
+            FROM api_note 
+            WHERE user_id = %s
+        """
+        notes = execute_query(query, [user_id])
+        
+        # Get appointments
+        query = """
+            SELECT 
+                a.id, a.patient_id, a.doctor_id,
+                a.appointment_date, a.symptoms, a.notes,
+                a.status, a.created_at, a.updated_at,
+                CONCAT('Dr. ', du.first_name, ' ', du.last_name) as doctor_name,
+                CONCAT(pu.first_name, ' ', pu.last_name) as patient_name
+            FROM api_appointment a
+            JOIN api_patient p ON a.patient_id = p.id
+            JOIN api_doctor d ON a.doctor_id = d.id
+            JOIN auth_user du ON d.user_id = du.id
+            JOIN auth_user pu ON p.user_id = pu.id
+            WHERE (p.user_id = %s OR d.user_id = %s)
+            ORDER BY a.appointment_date DESC
+        """
+        appointments = execute_query(query, [user_id, user_id])
+        
+        # Format appointment dates
+        for appointment in appointments:
+            if appointment['appointment_date']:
+                appointment['appointment_date'] = appointment['appointment_date'].strftime('%Y-%m-%d %H:%M:%S')
+            if appointment['created_at']:
+                appointment['created_at'] = appointment['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            if appointment['updated_at']:
+                appointment['updated_at'] = appointment['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Get consultations
+        query = """
+            SELECT 
+                id, patient_id, doctor_id,
+                appointment_id, diagnosis, prescription,
+                follow_up_date, created_at, updated_at
+            FROM api_consultancy 
+            WHERE patient_id = %s
+        """
+        consultations = execute_query(query, [user_id])
+        
+        # Get emergencies
+        query = """
+            SELECT 
+                id, patient_id, doctor_id,
+                emergency_type, severity, symptoms,
+                treatment_given, status,
+                created_at, updated_at
+            FROM api_emergency 
+            WHERE patient_id = %s
+        """
+        emergencies = execute_query(query, [user_id])
+        
+        return Response({
+            'user': user,
+            'profile': profile,
+            'patient': patient_data,
+            'doctor': doctor_data,
+            'notes': notes,
+            'appointments': appointments,
+            'consultations': consultations,
+            'emergencies': emergencies
+        })
+        
     def patch(self, request):
         try:
             # Start transaction
@@ -2149,3 +2159,169 @@ class MedicineStockView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+
+# --- Chatbot API (OpenAI + MongoDB) ---
+class ChatBotAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        message = request.data.get('message')
+        if not message:
+            return Response({'error': 'No message provided.'}, status=400)
+
+        # Call OpenAI API
+        openai.api_key = os.getenv('OPENAI_API_KEY')
+        try:
+            completion = openai.chat.completion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": message}]
+            )
+            ai_response = completion.choices[0].message['content']
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+        # Store chat in MongoDB
+        chat_collection = mongo_db['chats']
+        chat_collection.insert_one({
+            'user_id': str(user.id),
+            'username': user.username,
+            'message': message,
+            'ai_response': ai_response
+        })
+
+        return Response({'response': ai_response})
+
+class GoogleLoginAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token = request.data.get('credential')
+        try:
+            idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY)
+            email = idinfo['email']
+            first_name = idinfo.get('given_name', '')
+            last_name = idinfo.get('family_name', '')
+
+            user, created = User.objects.get_or_create(email=email, defaults={
+                'username': email,
+                'first_name': first_name,
+                'last_name': last_name,
+            })
+
+            # --- Ensure api_profile exists for this user ---
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT id FROM api_profile WHERE user_id = %s", [user.id])
+                profile = cursor.fetchone()
+                if not profile:
+                    # Insert minimal profile (fill with what you have, rest as empty/default)
+                    cursor.execute("""
+                        INSERT INTO api_profile (
+                            user_id, phone, address, date_of_birth, gender,
+                            blood_group, height, weight, emergency_contact,
+                            insurance_status, insurance_number, allergies, medical_conditions,
+                            user_type, created_at, updated_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    """, [
+                        user.id,
+                        '',  # phone
+                        '',  # address
+                        None,  # date_of_birth
+                        'OTHER',  # gender
+                        '',  # blood_group
+                        None,  # height
+                        None,  # weight
+                        '',  # emergency_contact
+                        'Not Insured',  # insurance_status
+                        '',  # insurance_number
+                        '',  # allergies
+                        '',  # medical_conditions
+                        'PATIENT'  # user_type
+                    ])
+                    # Immediately update with Google info if you have columns for them
+                    cursor.execute("""
+                        UPDATE api_profile SET
+                            phone = %s,
+                            address = %s
+                        WHERE user_id = %s
+                    """, [
+                        '',  # You can fill with Google info if available
+                        '',  # You can fill with Google info if available
+                        user.id
+                    ])
+
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'user_type': 'PATIENT'
+                }
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
+class ChatHistoryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        print("Fetching chat history for user_id:", user.id)
+        chat_collection = mongo_db['chats']
+        chats = list(chat_collection.find({'user_id': str(user.id)}).sort('_id', -1).limit(50))
+        print("Found chats:", chats)
+        for chat in chats:
+            chat['_id'] = str(chat['_id'])  # Convert ObjectId to string for JSON
+        return Response({'history': chats})
+
+class ChatbotReportUploadAPIView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        file = request.FILES.get('file')
+        if not file or not file.name.endswith('.pdf'):
+            return Response({'error': 'Please upload a PDF file.'}, status=400)
+        try:
+            with pdfplumber.open(file) as pdf:
+                text = ''
+                for page in pdf.pages:
+                    text += page.extract_text() or ''
+        except Exception as e:
+            return Response({'error': f'PDF extraction failed: {str(e)}'}, status=400)
+
+        if not text.strip():
+            return Response({'error': 'Could not extract text from PDF.'}, status=400)
+
+        try:
+            prompt = (
+                "You are a medical assistant. Summarize the following medical report, "
+                "suggest possible medications, and recommend a future course of action for the patient:\n\n"
+                f"{text}\n\nSummary, suggestions, and next steps:"
+            )
+            client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            ai_response = response.choices[0].message.content
+        except Exception as e:
+            return Response({'error': f'OpenAI failed: {str(e)}'}, status=500)
+
+        # Save this PDF interaction as a chat in MongoDB
+        user = request.user
+        chat_collection = mongo_db['chats']
+        chat_collection.insert_one({
+            'user_id': str(user.id),
+            'username': user.username,
+            'message': f"[PDF Uploaded] {file.name}",
+            'ai_response': ai_response
+        })
+
+        return Response({'summary': ai_response})

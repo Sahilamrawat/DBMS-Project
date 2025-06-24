@@ -4,6 +4,7 @@ import { FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { Link, useNavigate } from 'react-router-dom';
 import { ACCESS_TOKEN, REFRESH_TOKEN } from '../constants';
 import api from '../api';
+import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 
 function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -77,6 +78,8 @@ function Login() {
       setLoading(false);
     }
   };
+
+  console.log("Google Client ID:", "618587580136-7cdf2g80k68vpb794o2halci2iq35ali.apps.googleusercontent.com");
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-green-50 flex items-center justify-center p-4">
@@ -188,6 +191,39 @@ function Login() {
               </Link>
             </p>
           </div>
+
+          {/* Google Login Button */}
+          <div className="mt-6 text-center">
+            <p className="text-gray-600">
+              Or sign in with Google
+            </p>
+          </div>
+
+          <GoogleOAuthProvider clientId="618587580136-7cdf2g80k68vpb794o2halci2iq35ali.apps.googleusercontent.com">
+            <GoogleLogin
+              onSuccess={async credentialResponse => {
+                console.log('Google onSuccess called', credentialResponse);
+                try {
+                  const res = await api.post('/api/google-login/', {
+                    credential: credentialResponse.credential,
+                  });
+                  // Store JWT tokens and user info in localStorage
+                  localStorage.setItem(ACCESS_TOKEN, res.data.access);
+                  localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
+                  if (res.data.user && res.data.user.user_type) {
+                    localStorage.setItem('user_type', res.data.user.user_type);
+                  }
+                  console.log('Google login success, about to redirect...');
+                  window.location.href = '/';
+                } catch (err) {
+                  alert('Google login failed: ' + (err.response?.data?.error || err.message));
+                }
+              }}
+              onError={() => {
+                alert('Google Login Failed');
+              }}
+            />
+          </GoogleOAuthProvider>
         </form>
       </motion.div>
     </div>

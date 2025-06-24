@@ -9,3 +9,5 @@ sqlparse
 mysqlclient
 python-dotenv
 mysql-connector-python
+pymongo
+openai

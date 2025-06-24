@@ -69,7 +69,7 @@ function Navheader() {
     const baseItems = [
       { name: 'Home', path: '/' },
       { name: 'Services', path: '/services' },
-      { name: 'About Us', path: '/about' },
+      { name: 'AI Bot', path: '/ai-bot' },
       { name: 'Contact', path: '/contact' }
     ];
 

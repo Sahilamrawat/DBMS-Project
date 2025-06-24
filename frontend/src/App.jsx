@@ -22,6 +22,7 @@ import PatientEmergency from './pages/PatientEmergency'
 import DoctorEmergency from './pages/DoctorEmergency'
 import MedicalHistory from './pages/MedicalHistory'
 import LabTest from './pages/LabTest'
+import Bot from './pages/Bot'
 
 
 function Logout(){
@@ -47,6 +48,7 @@ function App() {
         <Route path="/logout" element={<Logout />} />
         <Route path="/register" element={<RegisterAndLogout />} />
         <Route path="/services" element={<FeaturesPage />} />
+        <Route path="/ai-bot" element={<Bot/>} />
         <Route path='profile' element={<Profile/>}/>
         <Route path='/doctor-profile' element={<DoctorProfile/>}/>
         <Route path="/appointment" element={<Appointment />} />

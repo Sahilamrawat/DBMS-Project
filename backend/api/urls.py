@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import AppointmentUpdateView, DoctorPatientsView, DoctorProfileView
+from .views import AppointmentUpdateView, DoctorPatientsView, DoctorProfileView, GoogleLoginAPIView, ChatHistoryAPIView, ChatbotReportUploadAPIView
 
 # Create a router and register viewsets
 router = DefaultRouter()
@@ -21,4 +21,8 @@ urlpatterns = [
     path('appointments/create/', views.AppointmentCreateView.as_view(), name='appointment-create'),
     path('appointments/', views.AppointmentListView.as_view(), name='appointment-list'),
     path('appointments/<int:appointment_id>/update/', AppointmentUpdateView.as_view(), name='appointment-update'),
+    path('auth/', include('social_django.urls', namespace='social')),
+    path('google-login/', GoogleLoginAPIView.as_view(), name='google-login'),
+    path('chatbot/history/', ChatHistoryAPIView.as_view(), name='chatbot-history'),
+    path('chatbot/upload-report/', ChatbotReportUploadAPIView.as_view(), name='chatbot-upload-report'),
 ]
