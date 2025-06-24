@@ -171,7 +171,7 @@ const Doctor = () => {
                       </div>
 
                       <button
-                        onClick={() => navigate('/appointments', {
+                        onClick={() => navigate('/appointment', {
                           state: { selectedDoctor: doctor },
                         })}
                         className="mt-5 w-full py-2 rounded-xl bg-[#77B254] text-white hover:bg-[#5d9f3f] transition"

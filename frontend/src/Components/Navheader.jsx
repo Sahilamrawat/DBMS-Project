@@ -111,7 +111,7 @@ function Navheader() {
                 ? 'bg-gradient-to-r from-[#77B254] to-[#69a048] bg-clip-text text-transparent'
                 : 'text-gray-800'
             }`}>
-              HealthCare
+              MediTrack
             </span>
           </a>         
         </motion.div>
