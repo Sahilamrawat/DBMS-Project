@@ -126,4 +126,15 @@
         The frontend receives the response and dynamically updates the UI to display the results to the user.
 
 
+### Appointment Booking UI
+>>Home Page
+![Appointment Screenshot](images/im1.png)
 
+>>Profile Page
+![Appointment Screenshot](images/im2.png)
+
+>>Services Page
+![Appointment Screenshot](images/im3.png) ![Appointment Screenshot](images/im4.png)
+
+>>Book Appointment Page
+![Appointment Screenshot](images/im5.png)
