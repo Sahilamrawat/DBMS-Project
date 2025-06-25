@@ -13,6 +13,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -79,7 +80,6 @@ function Login() {
     }
   };
 
-  console.log("Google Client ID:", "618587580136-7cdf2g80k68vpb794o2halci2iq35ali.apps.googleusercontent.com");
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-green-50 flex items-center justify-center p-4">
@@ -95,7 +95,7 @@ function Login() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden relative z-10"
+        className="w-full max-w-md bg@-white rounded-2xl shadow-xl overflow-hidden relative z-10"
       >
         {/* Card Header */}
         <div className="bg-gradient-to-r from-[#77B254] to-green-600 p-6 text-center">
@@ -199,7 +199,7 @@ function Login() {
             </p>
           </div>
 
-          <GoogleOAuthProvider clientId="618587580136-7cdf2g80k68vpb794o2halci2iq35ali.apps.googleusercontent.com">
+          <GoogleOAuthProvider clientId={clientId}>
             <GoogleLogin
               onSuccess={async credentialResponse => {
                 console.log('Google onSuccess called', credentialResponse);

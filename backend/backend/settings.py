@@ -28,12 +28,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-)h*u*r3c=zlp&)7!^e(up4&bx#bsrgnv3_^hd270-+jl@2zqg_'
+SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG =  os.environ.get("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
  
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -99,13 +99,13 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {    
+    'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'HealthCareSystem',
-        'USER': 'admin', 
-        'PASSWORD': 'sahil2005',
-        'HOST': 'dbms.cp8u8u4esgnz.eu-north-1.rds.amazonaws.com',  # or your MySQL host
-        'PORT': '3306',       # default MySQL port
+        'NAME': os.environ.get("DB_NAME"),
+        'USER': os.environ.get("DB_USER"),
+        'PASSWORD': os.environ.get("DB_PASSWORD"),
+        'HOST': os.environ.get("DB_HOST"),
+        'PORT': os.environ.get("DB_PORT", "3306"),
         
     }
 }
@@ -133,8 +133,8 @@ AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
 )
 
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '618587580136-7cdf2g80k68vpb794o2halci2iq35ali.apps.googleusercontent.com'
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.environ.get('SOCIAL_AUTH_GOOGLE_OAUTH2_KEY')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.environ.get('SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET')
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
 SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name']
 
@@ -163,8 +163,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb+srv://sahilamrawat002:JDgLSPTvDpbOgsVH@cluster0.t4wgs.mongodb.net/chatBot_db?')
-MONGODB_DB_NAME = os.getenv('MONGODB_DB_NAME', 'chatBot_db')
+MONGODB_URI=os.environ.get('MONGODB_URI')
+MONGODB_DB_NAME=os.environ.get('MONGODB_DB_NAME')
 
 mongo_client = MongoClient(MONGODB_URI)
 mongo_db = mongo_client[MONGODB_DB_NAME]
